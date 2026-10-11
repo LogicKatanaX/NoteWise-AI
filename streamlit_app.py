@@ -70,26 +70,33 @@ def generate_with_gemini(prompt: str, api_key: str):
 # ---------------------------------------------------------------------------
 # Ingestion Logic
 # ---------------------------------------------------------------------------
-def process_uploaded_files(uploaded_files):
-    """Processes uploaded files and returns a VectorStoreIndex."""
-    temp_dir = tempfile.mkdtemp()
-    try:
-        for file in uploaded_files:
-            file_path = os.path.join(temp_dir, file.name)
-            with open(file_path, "wb") as f:
-                f.write(file.getbuffer())
+import pypdf
+from llama_index.core import Document
 
-        reader = SimpleDirectoryReader(input_dir=temp_dir, recursive=True)
-        documents = reader.load_data()
+def process_uploaded_files(uploaded_files):
+    """Processes uploaded files and returns a VectorStoreIndex with clean extracted text."""
+    try:
+        documents = []
+        for file in uploaded_files:
+            if file.name.lower().endswith(".pdf"):
+                reader = pypdf.PdfReader(file)
+                pages_text = [page.extract_text() or "" for page in reader.pages]
+                full_text = "\n\n".join(pages_text).strip()
+                if full_text:
+                    documents.append(Document(text=full_text, metadata={"file_name": file.name}))
+            else:
+                raw_text = file.getvalue().decode("utf-8", errors="ignore").strip()
+                if raw_text:
+                    documents.append(Document(text=raw_text, metadata={"file_name": file.name}))
 
         if not documents:
-            return None, "No readable content found in uploaded files."
+            return None, "No readable text found in uploaded files (is the PDF a scanned image?)."
 
         splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=50)
         index = VectorStoreIndex.from_documents(documents, transformations=[splitter])
-        return index, f"Successfully indexed {len(documents)} chunk(s) from {len(uploaded_files)} file(s)!"
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        return index, f"Successfully indexed {len(documents)} document(s) from {len(uploaded_files)} file(s)!"
+    except Exception as e:
+        return None, f"Error reading documents: {str(e)}"
 
 # ---------------------------------------------------------------------------
 # App State Initialization
