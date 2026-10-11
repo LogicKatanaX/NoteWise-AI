@@ -136,34 +136,39 @@ Settings.embed_model = load_embedding_model()
 # Fast & Reliable Gemini Inference
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> str:
-    """Generates text strictly using Google Gemini 3.8 Flash with retry handling for server busy spikes."""
-    print("[NoteWise] Initializing Gemini 3.8 Flash client...", flush=True)
+    """Generates text prioritizing Gemini 3.8 Flash with automatic cascade to 3.7, 3.5, and 2.5 on 503 capacity spikes."""
     client = genai.Client(api_key=api_key)
-    max_retries = 3
+    candidate_models = [
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash",
+    ]
+    last_error = None
     
-    for attempt in range(max_retries):
+    for model_name in candidate_models:
         try:
-            print(f"[NoteWise] Calling gemini-3.8-flash (Attempt {attempt + 1}/{max_retries})...", flush=True)
+            print(f"[NoteWise] Querying {model_name}...", flush=True)
             t_start = time.time()
             response = client.models.generate_content(
-                model="gemini-3.8-flash",
+                model=model_name,
                 contents=prompt,
             )
             elapsed = time.time() - t_start
-            print(f"[NoteWise] gemini-3.8-flash responded in {elapsed:.2f}s!", flush=True)
+            print(f"[NoteWise] ✅ {model_name} succeeded in {elapsed:.2f}s!", flush=True)
             if response and response.text:
                 return response.text.strip()
         except Exception as e:
             err_msg = str(e)
-            print(f"[NoteWise ERROR] Attempt {attempt + 1} failed: {err_msg}", flush=True)
+            last_error = e
+            print(f"[NoteWise ⚠️] {model_name} unavailable: {err_msg}", flush=True)
             if "429" in err_msg or "resource_exhausted" in err_msg:
                 return "⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
-            # If Google's servers report temporary 503 high demand spike, retry gracefully
-            if ("503" in err_msg or "UNAVAILABLE" in err_msg) and attempt < max_retries - 1:
-                print("[NoteWise] Server 503 spike detected. Waiting 2.0s before retry...", flush=True)
-                time.sleep(2.0)
-                continue
-            raise e
+            # For 503 / UNAVAILABLE / not found, immediately try next model in cascade
+            continue
+
+    if last_error:
+        raise last_error
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
 
