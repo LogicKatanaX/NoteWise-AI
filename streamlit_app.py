@@ -136,13 +136,12 @@ Settings.embed_model = load_embedding_model()
 # Fast & Reliable Gemini Inference
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> str:
-    """Generates text prioritizing Gemini 3.8 Flash with automatic cascade to 3.7, 3.5, and 2.5 on 503 capacity spikes."""
+    """Generates text prioritizing Gemini 3.8 Flash with seamless rollover to high-quota models (2.5 & 1.5) on 429/503."""
     client = genai.Client(api_key=api_key)
     candidate_models = [
         "gemini-3.8-flash",
-        "gemini-3.7-flash",
-        "gemini-3.5-flash-lite",
         "gemini-2.5-flash",
+        "gemini-1.5-flash",
     ]
     last_error = None
     
@@ -161,13 +160,14 @@ def generate_gemini_content(prompt: str, api_key: str) -> str:
         except Exception as e:
             err_msg = str(e)
             last_error = e
-            print(f"[NoteWise ⚠️] {model_name} unavailable: {err_msg}", flush=True)
-            if "429" in err_msg or "resource_exhausted" in err_msg:
-                return "⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
-            # For 503 / UNAVAILABLE / not found, immediately try next model in cascade
+            print(f"[NoteWise ⚠️] {model_name} unavailable ({err_msg[:80]}...). Rolling over to next model...", flush=True)
+            # 429 (exceeded daily quota of 20 on 3.8) or 503 (high demand): roll over to next model
             continue
 
     if last_error:
+        err_str = str(last_error)
+        if "429" in err_str or "resource_exhausted" in err_str:
+            return "⚠️ **Daily free tier API quota reached.** Please try again tomorrow or use your own API key in settings."
         raise last_error
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
