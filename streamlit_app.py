@@ -133,47 +133,51 @@ def load_embedding_model():
 Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
-# Streaming Generator (Interactive Thinking Toggle)
+# Reliable Generation Logic (Supports Thinking Mode Toggle)
 # ---------------------------------------------------------------------------
-def stream_gemini_response(prompt: str, api_key: str, enable_thinking: bool = False):
-    """
-    Streams response chunks with customizable reasoning budget:
-    - Thinking OFF: thinking_budget=0 (Sub-second instant Turbo response)
-    - Thinking ON:  thinking_budget=2048 (In-depth deliberate reasoning)
-    """
+def generate_gemini_content(prompt: str, api_key: str, enable_thinking: bool = False) -> str:
+    """Generates complete text response reliably from Google Gemini 3.8 Flash."""
     client = genai.Client(api_key=api_key)
     
-    # Configure reasoning budget based on user toggle
-    budget = 2048 if enable_thinking else 0
-    config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(thinking_budget=budget),
-        temperature=0.7 if enable_thinking else 0.2,
-    )
-    
+    # Configure reasoning budget if Thinking Mode is enabled
+    config = None
+    if enable_thinking:
+        try:
+            config = types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=2048),
+                temperature=0.7,
+            )
+        except Exception:
+            config = None
+
     try:
-        stream = client.models.generate_content_stream(
-            model="gemini-3.8-flash",
-            contents=prompt,
-            config=config,
-        )
-        for chunk in stream:
-            if chunk.text:
-                yield chunk.text
+        if config:
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+                config=config,
+            )
+        else:
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+            )
     except Exception as e:
         err_msg = str(e)
         if "429" in err_msg or "resource_exhausted" in err_msg:
-            yield "\n\n⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
-        else:
-            try:
-                stream = client.models.generate_content_stream(
-                    model="gemini-3.8-flash",
-                    contents=prompt,
-                )
-                for chunk in stream:
-                    if chunk.text:
-                        yield chunk.text
-            except Exception as e2:
-                yield f"\n\n❌ Error: {str(e2)}"
+            return "⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
+        raise e
+
+    if response and response.text:
+        return response.text.strip()
+    return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
+
+def stream_typewriter(text: str, delay: float = 0.012):
+    """Streams text word-by-word for an engaging real-time typewriter effect."""
+    words = text.split(" ")
+    for i, word in enumerate(words):
+        yield word + (" " if i < len(words) - 1 else "")
+        time.sleep(delay)
 
 # ---------------------------------------------------------------------------
 # Clean Document Ingestion Logic
@@ -264,19 +268,19 @@ with st.sidebar:
     enable_thinking = st.toggle(
         "🧠 Deep Thinking Mode",
         value=False,
-        help="Turn OFF for instant sub-second answers (Turbo Mode). Turn ON for in-depth deliberate reasoning on complex inquiries."
+        help="Turn OFF for fast instant answers (Turbo Mode). Turn ON for in-depth deliberate reasoning on complex inquiries."
     )
     if enable_thinking:
         st.caption("🟣 *Deep Reasoning active (higher analysis depth).*")
     else:
-        st.caption("🟢 *Turbo Mode active (sub-second instant streaming).*")
+        st.caption("🟢 *Turbo Mode active (fast instant responses).*")
 
     st.divider()
 
     st.markdown("### 📊 Engine Status")
     if st.session_state.index is not None:
         st.success("● RAG Knowledge Base Active")
-        mode_label = "Deep Reasoning" if enable_thinking else "Turbo Stream"
+        mode_label = "Deep Reasoning" if enable_thinking else "Turbo"
         st.markdown(f"""
         <div class="stat-box">
             <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
@@ -302,7 +306,7 @@ with st.sidebar:
 # Main Content Area
 # ---------------------------------------------------------------------------
 active_badge_class = "badge-deep" if enable_thinking else "badge-turbo"
-active_badge_text = "● Deep Reasoning ON" if enable_thinking else "⚡ Turbo Mode (Instant)"
+active_badge_text = "● Deep Reasoning ON" if enable_thinking else "⚡ Turbo Mode"
 
 st.markdown(f"""
 <div class="hero-card">
@@ -348,7 +352,7 @@ for msg in st.session_state.messages:
                     st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Query Processing (Handles Text Input or Quick Prompts)
+# Query Processing
 # ---------------------------------------------------------------------------
 chat_input_val = st.chat_input("Ask a question about the document...")
 active_prompt = preset_prompt or chat_input_val
@@ -380,40 +384,46 @@ if active_prompt:
     with st.chat_message("assistant"):
         sources = []
         
-        if st.session_state.index is not None:
-            # Laser-focused retrieval
-            retriever = st.session_state.index.as_retriever(similarity_top_k=2)
-            nodes = retriever.retrieve(active_prompt)
+        with st.spinner("Analyzing document with Gemini..."):
+            try:
+                if st.session_state.index is not None:
+                    retriever = st.session_state.index.as_retriever(similarity_top_k=2)
+                    nodes = retriever.retrieve(active_prompt)
 
-            context_blocks = []
-            for i, node in enumerate(nodes, 1):
-                clean_text = node.node.text.strip().replace("\n", " ")
-                context_blocks.append(f"[Source {i}]: {clean_text}")
-                sources.append({
-                    "score": node.score,
-                    "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
-                })
+                    context_blocks = []
+                    for i, node in enumerate(nodes, 1):
+                        clean_text = node.node.text.strip().replace("\n", " ")
+                        context_blocks.append(f"[Source {i}]: {clean_text}")
+                        sources.append({
+                            "score": node.score,
+                            "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
+                        })
 
-            context_str = "\n\n".join(context_blocks)
-            rag_prompt = (
-                "You are NoteWise-AI, an executive document intelligence assistant. "
-                "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
-                "Be direct. Use clean markdown formatting. If the answer cannot be found in the context, state that clearly.\n\n"
-                f"--- CONTEXT ---\n{context_str}\n\n"
-                f"--- USER QUESTION ---\n{active_prompt}"
-            )
+                    context_str = "\n\n".join(context_blocks)
+                    rag_prompt = (
+                        "You are NoteWise-AI, an executive document intelligence assistant. "
+                        "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
+                        "Be direct and use clean markdown bullet points. If the answer cannot be found in the context, state that clearly.\n\n"
+                        f"--- CONTEXT ---\n{context_str}\n\n"
+                        f"--- USER QUESTION ---\n{active_prompt}"
+                    )
 
-            # Stream with user's chosen reasoning mode
-            answer = st.write_stream(stream_gemini_response(rag_prompt, api_key, enable_thinking=enable_thinking))
+                    answer = generate_gemini_content(rag_prompt, api_key, enable_thinking=enable_thinking)
 
-        else:
-            general_prompt = (
-                "You are NoteWise-AI, an intelligent document intelligence assistant. "
-                "The user has not uploaded any documents yet. Answer their query politely, direct and concisely, "
-                "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
-                f"User Query: {active_prompt}"
-            )
-            answer = st.write_stream(stream_gemini_response(general_prompt, api_key, enable_thinking=enable_thinking))
+                else:
+                    general_prompt = (
+                        "You are NoteWise-AI, an intelligent document intelligence assistant. "
+                        "The user has not uploaded any documents yet. Answer their query politely, direct and concisely, "
+                        "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
+                        f"User Query: {active_prompt}"
+                    )
+                    answer = generate_gemini_content(general_prompt, api_key, enable_thinking=enable_thinking)
+
+            except Exception as e:
+                answer = f"❌ Error: {str(e)}"
+
+        # Typewriter display animation
+        st.write_stream(stream_typewriter(answer))
 
         # Collapsible Sources
         if sources:
