@@ -111,8 +111,8 @@ if not IS_TESTING:
     /* Flagship Center Hero Section */
     .claude-hero-container {
         text-align: center;
-        margin-top: 2rem;
-        margin-bottom: 1.8rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1.5rem;
         animation: heroFadeIn 0.4s ease-out;
     }
     @keyframes heroFadeIn {
@@ -120,40 +120,24 @@ if not IS_TESTING:
         to { opacity: 1; transform: translateY(0); }
     }
 
-    .flagship-status-badge {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(217, 119, 87, 0.08);
-        border: 1px solid rgba(217, 119, 87, 0.25);
-        border-radius: 9999px;
-        padding: 5px 16px;
-        font-size: 0.70rem;
-        font-weight: 600;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-        color: #e88d70;
-        margin-bottom: 18px;
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-    }
-
     .hero-avatar-wrapper {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 72px;
-        height: 72px;
-        border-radius: 20px;
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
         background: radial-gradient(circle at 50% 30%, rgba(217, 119, 87, 0.22) 0%, rgba(28, 26, 24, 0.95) 75%);
         border: 1px solid rgba(217, 119, 87, 0.35);
-        box-shadow: 0 0 35px rgba(217, 119, 87, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-        margin-bottom: 16px;
+        box-shadow: 0 0 32px rgba(217, 119, 87, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+        margin-bottom: 14px;
     }
 
     .claude-hero-title {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Newsreader", Georgia, serif;
-        font-size: 2.85rem;
+        font-size: 2.6rem;
         font-weight: 500;
-        letter-spacing: -0.025em;
+        letter-spacing: -0.03em;
         color: #fafafa;
         margin: 0;
         line-height: 1.15;
@@ -161,12 +145,12 @@ if not IS_TESTING:
 
     .claude-hero-subtitle {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-        font-size: 1rem;
+        font-size: 0.95rem;
         color: #8e8e93;
-        margin-top: 10px;
-        margin-bottom: 8px;
+        margin-top: 8px;
+        margin-bottom: 0;
         font-weight: 400;
-        max-width: 620px;
+        max-width: 580px;
         margin-left: auto;
         margin-right: auto;
         line-height: 1.55;
@@ -302,7 +286,7 @@ if not IS_TESTING:
         font-size: 0.90rem !important;
         font-weight: 500 !important;
         letter-spacing: -0.01em !important;
-        padding: 14px 22px !important;
+        padding: 13px 20px !important;
         white-space: normal !important;
         word-wrap: break-word !important;
         text-align: left !important;
@@ -311,9 +295,9 @@ if not IS_TESTING:
         align-items: center !important;
         width: 100% !important;
         line-height: 1.4 !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 6px !important;
         transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
     }
     .stButton > button:hover {
         background: rgba(255, 255, 255, 0.075) !important;
@@ -877,13 +861,10 @@ def execute_rag(prompt_text: str):
 with st.sidebar:
     if LOGO_B64:
         st.markdown(f"""
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="data:image/png;base64,{LOGO_B64}" width="34" height="34" style="border-radius: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);" />
-                <div>
-                    <div style="font-family: 'Newsreader', serif; font-size: 1.45rem; color: #f4f4f5; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1;">NoteWise</div>
-                    <div style="font-size: 0.65rem; color: #71717a; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Enterprise Copilot</div>
-                </div>
+                <img src="data:image/png;base64,{LOGO_B64}" width="32" height="32" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" />
+                <span style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', serif; font-size: 1.35rem; color: #f4f4f5; font-weight: 600; letter-spacing: -0.02em;">NoteWise</span>
             </div>
             <span style="font-size: 0.68rem; background: rgba(217, 119, 87, 0.12); color: #e88d70; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(217, 119, 87, 0.3); font-weight: 600;">v2.4</span>
         </div>
@@ -1070,25 +1051,20 @@ if not st.session_state.messages:
     hero_logo = f'<img src="data:image/png;base64,{LOGO_B64}" width="52" height="52" style="border-radius: 14px;" />' if LOGO_B64 else ''
     st.markdown(f"""
     <div class="claude-hero-container">
-        <div>
-            <span class="flagship-status-badge">
-                Production Document Intelligence Platform
-            </span>
-        </div>
         <div class="hero-avatar-wrapper">
             {hero_logo}
         </div>
         <h1 class="claude-hero-title">
-            Back at it, User
+            Where should we begin?
         </h1>
         <p class="claude-hero-subtitle">
-            Search across documents, verify citations with hybrid BM25 + dense vectors, or prepare for technical interviews.
+            Search across documents, verify citations with hybrid search, or prepare for technical interviews.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
     # Clean iOS Horizontal Action Cards (Top-Down Approach, Full Text, Zero Emojis)
-    st.markdown("<div style='margin-top: 16px; margin-bottom: 24px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 14px; margin-bottom: 20px;'></div>", unsafe_allow_html=True)
     if st.button("Executive Summary", use_container_width=True):
         active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
     if st.button("Key Skills and Technical Architecture", use_container_width=True):
