@@ -189,9 +189,10 @@ if prompt := st.chat_input("Ask a question about your documents..."):
                     for i, node in enumerate(nodes, 1):
                         clean_text = node.node.text.strip().replace("\n", " ")
                         context_blocks.append(f"[Source {i}]: {clean_text}")
+                        snippet = clean_text[:250] + ("..." if len(clean_text) > 250 else "")
                         sources.append({
                             "score": node.score,
-                            "text": snippet := clean_text[:250] + ("..." if len(clean_text) > 250 else "")
+                            "text": snippet
                         })
 
                     context_str = "\n\n".join(context_blocks)
@@ -231,3 +232,4 @@ if prompt := st.chat_input("Ask a question about your documents..."):
 
             except Exception as e:
                 st.error(f"Error generating response: {str(e)}")
+
