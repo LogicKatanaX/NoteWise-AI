@@ -1,29 +1,111 @@
 import os
+import time
 import shutil
 import tempfile
 import streamlit as st
+import pypdf
 from google import genai
 
 from llama_index.core import (
     VectorStoreIndex,
-    SimpleDirectoryReader,
+    Document,
     Settings,
 )
 from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # ---------------------------------------------------------------------------
-# Page Configuration
+# Page Configuration & Metadata
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="NoteWise-AI | Advanced RAG Chatbot",
+    page_title="NoteWise-AI | Document Intelligence",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ---------------------------------------------------------------------------
-# API Key Management (Supports st.secrets and environment variables)
+# Executive Professional Styling (Modern Dark Aesthetic)
+# ---------------------------------------------------------------------------
+st.markdown("""
+<style>
+    /* Main container refinements */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1100px;
+    }
+    
+    /* Header Card */
+    .hero-card {
+        background: linear-gradient(135deg, rgba(255, 75, 75, 0.08) 0%, rgba(30, 30, 30, 0.4) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    .hero-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: #FFFFFF;
+    }
+    .hero-subtitle {
+        font-size: 0.95rem;
+        color: #B0B0B0;
+        margin: 0;
+    }
+    .hero-badges {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #E0E0E0;
+    }
+    .badge-accent {
+        background: rgba(255, 75, 75, 0.15);
+        border-color: rgba(255, 75, 75, 0.4);
+        color: #FF6B6B;
+    }
+
+    /* Stat Card */
+    .stat-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 8px;
+        font-size: 0.85rem;
+    }
+    
+    /* Source Citation Expander */
+    .source-box {
+        background: rgba(255, 255, 255, 0.02);
+        border-left: 3px solid #FF4B4B;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Rate Limiting & Abuse Prevention Constants
+# ---------------------------------------------------------------------------
+RATE_LIMIT_COOLDOWN = 2.0         # Minimum seconds between requests
+MAX_QUERIES_PER_SESSION = 35      # Maximum queries per user session to prevent quota drain
+
+# ---------------------------------------------------------------------------
+# API Key Management
 # ---------------------------------------------------------------------------
 def get_api_key():
     if "GOOGLE_API_KEY" in st.secrets:
@@ -31,7 +113,7 @@ def get_api_key():
     return os.environ.get("GOOGLE_API_KEY", "")
 
 # ---------------------------------------------------------------------------
-# Cache Models for Speed & Instant Startup
+# Embeddings & Inference Cache
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_embedding_model():
@@ -47,7 +129,7 @@ def load_embedding_model():
 Settings.embed_model = load_embedding_model()
 
 def generate_with_gemini(prompt: str, api_key: str):
-    """Generate response using Google's modern google-genai SDK (supports AQ. keys)."""
+    """Generate response using Google's modern google-genai SDK with error handling."""
     client = genai.Client(api_key=api_key)
     
     for model_name in ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
@@ -58,7 +140,10 @@ def generate_with_gemini(prompt: str, api_key: str):
             )
             if response and response.text:
                 return response.text
-        except Exception:
+        except Exception as e:
+            err_str = str(e).lower()
+            if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
+                raise RuntimeError("API Rate limit reached. Please wait a moment before trying again.")
             continue
 
     response = client.models.generate_content(
@@ -68,18 +153,18 @@ def generate_with_gemini(prompt: str, api_key: str):
     return response.text if response and response.text else "No response generated."
 
 # ---------------------------------------------------------------------------
-# Ingestion Logic
+# Clean Document Ingestion Logic
 # ---------------------------------------------------------------------------
-import pypdf
-from llama_index.core import Document
-
 def process_uploaded_files(uploaded_files):
-    """Processes uploaded files and returns a VectorStoreIndex with clean extracted text."""
+    """Parses clean text from PDFs and text files and builds the vector index."""
     try:
         documents = []
+        total_pages = 0
+        
         for file in uploaded_files:
             if file.name.lower().endswith(".pdf"):
                 reader = pypdf.PdfReader(file)
+                total_pages += len(reader.pages)
                 pages_text = [page.extract_text() or "" for page in reader.pages]
                 full_text = "\n\n".join(pages_text).strip()
                 if full_text:
@@ -90,16 +175,17 @@ def process_uploaded_files(uploaded_files):
                     documents.append(Document(text=raw_text, metadata={"file_name": file.name}))
 
         if not documents:
-            return None, "No readable text found in uploaded files (is the PDF a scanned image?)."
+            return None, "No readable text detected in uploaded files (is the PDF a scanned image?).", 0
 
         splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=50)
         index = VectorStoreIndex.from_documents(documents, transformations=[splitter])
-        return index, f"Successfully indexed {len(documents)} document(s) from {len(uploaded_files)} file(s)!"
+        
+        return index, f"Indexed {len(documents)} document(s) successfully!", total_pages
     except Exception as e:
-        return None, f"Error reading documents: {str(e)}"
+        return None, f"Document parsing error: {str(e)}", 0
 
 # ---------------------------------------------------------------------------
-# App State Initialization
+# Session State Initialization
 # ---------------------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -110,129 +196,198 @@ if "index" not in st.session_state:
 if "indexed_files" not in st.session_state:
     st.session_state.indexed_files = []
 
+if "doc_stats" not in st.session_state:
+    st.session_state.doc_stats = {"files": 0, "pages": 0}
+
+if "last_query_time" not in st.session_state:
+    st.session_state.last_query_time = 0.0
+
+if "query_count" not in st.session_state:
+    st.session_state.query_count = 0
+
 # ---------------------------------------------------------------------------
-# Sidebar UI
+# Sidebar UI (Control Center)
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.title("🧠 NoteWise-AI")
-    st.caption("Advanced Document RAG & Agentic Assistant")
-    st.divider()
-
-    st.subheader("📁 Knowledge Base")
+    st.markdown("### 🗂️ Knowledge Base")
     uploaded_files = st.file_uploader(
         "Upload Documents",
         type=["pdf", "txt", "md", "docx"],
         accept_multiple_files=True,
-        help="Upload files to search and chat with your private documents."
+        help="Upload PDF or text files to index into the private knowledge base."
     )
 
     if st.button("📥 Index Documents", use_container_width=True, type="primary"):
         if not uploaded_files:
-            st.warning("Please upload at least one document.")
+            st.warning("Please upload at least one file.")
         else:
-            with st.spinner("Processing & indexing documents..."):
-                index, message = process_uploaded_files(uploaded_files)
+            with st.spinner("Parsing & embedding documents..."):
+                index, msg, pages = process_uploaded_files(uploaded_files)
                 if index:
                     st.session_state.index = index
                     st.session_state.indexed_files = [f.name for f in uploaded_files]
-                    st.success(message)
+                    st.session_state.doc_stats = {
+                        "files": len(uploaded_files),
+                        "pages": pages
+                    }
+                    st.success(msg)
                 else:
-                    st.error(message)
+                    st.error(msg)
 
     st.divider()
 
-    st.subheader("📊 System Status")
+    st.markdown("### 📊 Engine Status")
     if st.session_state.index is not None:
-        st.success("✅ Knowledge Index Active")
-        st.info(f"📄 Files: {', '.join(st.session_state.indexed_files)}")
+        st.success("● RAG Knowledge Base Active")
+        st.markdown(f"""
+        <div class="stat-box">
+            <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
+            <b>Total Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
+            <b>Embedding Model:</b> BAAI/bge-small-en-v1.5<br>
+            <b>Inference:</b> Google Gemini 3.8 Flash
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.info("ℹ️ General Chat Mode (No docs uploaded)")
+        st.info("○ General Mode (No documents loaded)")
+        st.caption("Upload documents above to enable semantic retrieval & source citations.")
 
     st.divider()
 
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
+    # Session Usage Counter (Recruiter Transparency)
+    remaining_queries = MAX_QUERIES_PER_SESSION - st.session_state.query_count
+    st.caption(f"Session Quota: {remaining_queries}/{MAX_QUERIES_PER_SESSION} queries remaining")
+
+    if st.button("🗑️ Reset Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
 # ---------------------------------------------------------------------------
-# Main Chat Interface
+# Main Content Area
 # ---------------------------------------------------------------------------
-st.title("💬 Chat with NoteWise-AI")
-st.markdown("Ask anything about your uploaded documents, or chat generally with Google Gemini!")
+# Hero Banner
+st.markdown("""
+<div class="hero-card">
+    <div class="hero-title">🧠 NoteWise-AI</div>
+    <p class="hero-subtitle">Production-grade Retrieval-Augmented Generation & Document Intelligence</p>
+    <div class="hero-badges">
+        <span class="badge badge-accent">● Gemini 3.8 Flash</span>
+        <span class="badge">LlamaIndex Vector Core</span>
+        <span class="badge">Dense Embeddings</span>
+        <span class="badge">Source Citations</span>
+        <span class="badge">Anti-Abuse Guard</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Render message history
+# ---------------------------------------------------------------------------
+# 1-Click Starter Pills (Instant Demo for Recruiters)
+# ---------------------------------------------------------------------------
+if st.session_state.index is not None:
+    st.markdown("##### ⚡ Quick Prompts")
+    c1, c2, c3 = st.columns(3)
+    preset_prompt = None
+
+    with c1:
+        if st.button("📄 Executive Summary", use_container_width=True):
+            preset_prompt = "Provide a high-level executive summary of this document, highlighting its core message and key takeaways."
+    with c2:
+        if st.button("🛠️ Extract Skills & Tech", use_container_width=True):
+            preset_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
+    with c3:
+        if st.button("🎯 Interview Questions", use_container_width=True):
+            preset_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
+else:
+    preset_prompt = None
+
+# Render Message History
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if "sources" in msg and msg["sources"]:
-            with st.expander("📚 View Retrieved Sources"):
+            with st.expander("📚 Retrieved Source Citations"):
                 for idx, src in enumerate(msg["sources"], 1):
-                    score_str = f"`{src['score']:.3f}`" if src.get("score") is not None else "N/A"
-                    st.markdown(f"**Source {idx}** (Similarity Score: {score_str})")
-                    st.write(f"_{src['text']}_")
-                    if idx < len(msg["sources"]):
-                        st.divider()
+                    score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
+                    st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
+                    st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
-# User Input
-if prompt := st.chat_input("Ask a question about your documents..."):
-    # Append user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# ---------------------------------------------------------------------------
+# Query Processing (Handles Text Input or Quick Prompts)
+# ---------------------------------------------------------------------------
+chat_input_val = st.chat_input("Ask a question about the document...")
+active_prompt = preset_prompt or chat_input_val
+
+if active_prompt:
+    # 1. Rate Limiting Cooldown Check
+    current_time = time.time()
+    time_since_last = current_time - st.session_state.last_query_time
+    if time_since_last < RATE_LIMIT_COOLDOWN:
+        st.toast(f"⏳ Cooldown active. Please wait {RATE_LIMIT_COOLDOWN - time_since_last:.1f}s before sending another question.", icon="⚠️")
+        st.stop()
+
+    # 2. Session Budget Check (Anti-Bot / Anti-Drain)
+    if st.session_state.query_count >= MAX_QUERIES_PER_SESSION:
+        st.error("🚫 You have reached the maximum session query budget (35 queries). Please click 'Reset Chat' in the sidebar to start a new session.")
+        st.stop()
+
+    # Update cooldown & budget
+    st.session_state.last_query_time = current_time
+    st.session_state.query_count += 1
+
+    # Render User Message
+    st.session_state.messages.append({"role": "user", "content": active_prompt})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(active_prompt)
 
     api_key = get_api_key()
     if not api_key:
         with st.chat_message("assistant"):
-            st.error("❌ **GOOGLE_API_KEY is missing!** Please add it in Streamlit Secrets (`.streamlit/secrets.toml`).")
+            st.error("❌ **GOOGLE_API_KEY is missing!** Configure it in Streamlit Cloud Secrets.")
         st.stop()
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+        with st.spinner("Analyzing knowledge base..."):
             try:
                 sources = []
                 if st.session_state.index is not None:
-                    # 1. Retrieve top 3 relevant chunks
+                    # Semantic Retrieval via LlamaIndex
                     retriever = st.session_state.index.as_retriever(similarity_top_k=3)
-                    nodes = retriever.retrieve(prompt)
+                    nodes = retriever.retrieve(active_prompt)
 
                     context_blocks = []
                     for i, node in enumerate(nodes, 1):
                         clean_text = node.node.text.strip().replace("\n", " ")
                         context_blocks.append(f"[Source {i}]: {clean_text}")
-                        snippet = clean_text[:250] + ("..." if len(clean_text) > 250 else "")
                         sources.append({
                             "score": node.score,
-                            "text": snippet
+                            "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
                         })
 
                     context_str = "\n\n".join(context_blocks)
                     rag_prompt = (
-                        "You are NoteWise-AI, an intelligent document analysis assistant. "
-                        "Use the following retrieved context to answer the user's question accurately and concisely. "
-                        "If the answer cannot be found in the context, state that clearly.\n\n"
+                        "You are NoteWise-AI, an executive document intelligence assistant. "
+                        "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
+                        "Use clean markdown formatting. If the answer cannot be found in the context, state that clearly.\n\n"
                         f"--- CONTEXT ---\n{context_str}\n\n"
-                        f"--- QUESTION ---\n{prompt}"
+                        f"--- USER QUESTION ---\n{active_prompt}"
                     )
                     answer = generate_with_gemini(rag_prompt, api_key)
                 else:
                     general_prompt = (
-                        "You are NoteWise-AI, an intelligent document analysis assistant. "
-                        "The user has not uploaded any documents yet. Answer their question politely, "
-                        "and remind them they can upload PDFs or text files via the sidebar to chat with their documents.\n\n"
-                        f"User Question: {prompt}"
+                        "You are NoteWise-AI, an intelligent document intelligence assistant. "
+                        "The user has not uploaded any documents yet. Answer their query politely and professionally, "
+                        "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
+                        f"User Query: {active_prompt}"
                     )
                     answer = generate_with_gemini(general_prompt, api_key)
 
                 st.markdown(answer)
 
                 if sources:
-                    with st.expander("📚 View Retrieved Sources"):
+                    with st.expander("📚 Retrieved Source Citations"):
                         for idx, src in enumerate(sources, 1):
-                            score_str = f"`{src['score']:.3f}`" if src.get("score") is not None else "N/A"
-                            st.markdown(f"**Source {idx}** (Similarity Score: {score_str})")
-                            st.write(f"_{src['text']}_")
-                            if idx < len(sources):
-                                st.divider()
+                            score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
+                            st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
+                            st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -241,5 +396,4 @@ if prompt := st.chat_input("Ask a question about your documents..."):
                 })
 
             except Exception as e:
-                st.error(f"Error generating response: {str(e)}")
-
+                st.error(f"Generation error: {str(e)}")
