@@ -6,6 +6,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
 import time
+import json
 import shutil
 import tempfile
 import torch
@@ -24,6 +25,7 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from sentence_transformers import CrossEncoder
 
 import base64
 
@@ -248,6 +250,59 @@ st.markdown("""
         font-size: 0.72rem;
         font-weight: 600;
     }
+
+    /* Eval metric badges */
+    .eval-badge-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .eval-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        border: 1px solid;
+    }
+    .eval-badge.high {
+        background-color: rgba(34, 197, 94, 0.1);
+        border-color: rgba(34, 197, 94, 0.35);
+        color: #22c55e;
+    }
+    .eval-badge.medium {
+        background-color: rgba(234, 179, 8, 0.1);
+        border-color: rgba(234, 179, 8, 0.35);
+        color: #eab308;
+    }
+    .eval-badge.low {
+        background-color: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.35);
+        color: #ef4444;
+    }
+
+    /* Telemetry row */
+    .telemetry-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+        font-size: 0.72rem;
+        color: #71717a;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .telemetry-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .telemetry-val {
+        color: #a1a1aa;
+        font-weight: 600;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -275,12 +330,18 @@ def load_embedding_model():
         device="cpu"
     )
 
+@st.cache_resource(show_spinner=False)
+def load_reranker():
+    """Load cross-encoder for re-ranking retrieved chunks."""
+    return CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
 Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
 # Multi-Tier Gemini 3 Cascade Engine
 # ---------------------------------------------------------------------------
-def generate_gemini_content(prompt: str, api_key: str) -> str:
+def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
+    """Returns (answer_text, model_name_used)."""
     client = genai.Client(api_key=api_key)
     
     preferred = [
@@ -312,7 +373,7 @@ def generate_gemini_content(prompt: str, api_key: str) -> str:
             elapsed = time.time() - t_start
             print(f"[NoteWise] ✅ {model_name} succeeded in {elapsed:.2f}s!", flush=True)
             if response and response.text:
-                return response.text.strip()
+                return response.text.strip(), model_name
         except Exception as e:
             err_msg = str(e)
             last_error = e
@@ -322,10 +383,47 @@ def generate_gemini_content(prompt: str, api_key: str) -> str:
     if last_error:
         err_str = str(last_error)
         if "429" in err_str or "resource_exhausted" in err_str:
-            return "⚠️ **Daily API quota reached on free tier.** Please wait or configure your own key in settings."
+            return "⚠️ **Daily API quota reached on free tier.** Please wait or configure your own key in settings.", "none"
         raise last_error
 
-    return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
+    return "⚠️ Could not generate an answer from the document. Please try asking in a different way.", "none"
+
+def evaluate_rag_response(context: str, question: str, answer: str, api_key: str) -> dict:
+    """Run Gemini-based RAGAS-inspired evaluation. Returns dict with scores."""
+    eval_prompt = (
+        "You are an objective evaluator of AI-generated answers from a RAG system. "
+        "Score the following response on 3 dimensions (0.0 to 1.0 each). Be strict and precise.\n\n"
+        f"Context (retrieved document chunks):\n{context[:600]}\n\n"
+        f"User Question: {question}\n\n"
+        f"AI Answer: {answer[:600]}\n\n"
+        "Return ONLY a JSON object with exactly these keys:\n"
+        '{"faithfulness": <float>, "relevance": <float>, "completeness": <float>}\n\n'
+        "faithfulness = Is the answer grounded in context only? (1.0 = fully grounded, 0.0 = hallucinated)\n"
+        "relevance = Does the answer address the user's question? (1.0 = fully relevant)\n"
+        "completeness = Does the answer use the available context effectively? (1.0 = comprehensive)"
+    )
+    try:
+        eval_text, _ = generate_gemini_content(eval_prompt, api_key)
+        # Extract JSON from the response
+        start = eval_text.find("{")
+        end = eval_text.rfind("}") + 1
+        if start != -1 and end > start:
+            scores = json.loads(eval_text[start:end])
+            return {
+                "faithfulness": max(0.0, min(1.0, float(scores.get("faithfulness", 0.5)))),
+                "relevance": max(0.0, min(1.0, float(scores.get("relevance", 0.5)))),
+                "completeness": max(0.0, min(1.0, float(scores.get("completeness", 0.5)))),
+            }
+    except Exception as e:
+        print(f"[NoteWise] Eval error: {e}", flush=True)
+    return {}
+
+def score_badge_class(score: float) -> str:
+    if score >= 0.75:
+        return "high"
+    elif score >= 0.45:
+        return "medium"
+    return "low"
 
 def stream_typewriter(text: str, delay: float = 0.008):
     words = text.split(" ")
@@ -340,8 +438,9 @@ def process_uploaded_files(uploaded_files):
     try:
         documents = []
         total_pages = 0
-        
-        for file in uploaded_files:
+        progress_bar = st.progress(0, text="📄 Parsing documents...")
+
+        for file_idx, file in enumerate(uploaded_files):
             if file.name.lower().endswith(".pdf"):
                 reader = pypdf.PdfReader(file)
                 total_pages += len(reader.pages)
@@ -354,15 +453,54 @@ def process_uploaded_files(uploaded_files):
                 if raw_text:
                     documents.append(Document(text=raw_text, metadata={"file_name": file.name}))
 
+        progress_bar.progress(33, text="✂️ Chunking text (TokenTextSplitter 512/50)...")
+
         if not documents:
+            progress_bar.empty()
             return None, "No readable text detected in uploaded files (is the PDF a scanned image?).", 0
 
         splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=50)
+        progress_bar.progress(55, text="🧠 Generating embeddings (BAAI/bge-small-en-v1.5)...")
         index = VectorStoreIndex.from_documents(documents, transformations=[splitter])
-        
+
+        progress_bar.progress(90, text="📦 Building vector index...")
+        time.sleep(0.3)
+        progress_bar.progress(100, text="✅ Index ready!")
+        time.sleep(0.4)
+        progress_bar.empty()
+
         return index, f"Indexed {len(documents)} document(s) successfully!", total_pages
     except Exception as e:
         return None, f"Document parsing error: {str(e)}", 0
+
+# ---------------------------------------------------------------------------
+# Chat Export Helper
+# ---------------------------------------------------------------------------
+def generate_markdown_export(messages: list) -> str:
+    lines = [
+        "# NoteWise AI — Session Export",
+        f"*Exported on {time.strftime('%Y-%m-%d %H:%M UTC')}*",
+        "",
+    ]
+    for m in messages:
+        role_label = "**You**" if m["role"] == "user" else "**NoteWise**"
+        meta = ""
+        if m["role"] == "assistant":
+            if m.get("model_used"):
+                meta += f" ·  `{m['model_used']}`"
+            if m.get("retrieval_ms") is not None:
+                meta += f" · ⚡ {m['retrieval_ms']}ms retrieval"
+        lines.append(f"### {role_label}{meta}")
+        lines.append(m["content"])
+        if m.get("sources"):
+            lines.append("\n<details><summary>📚 Source Citations</summary>\n")
+            for idx, src in enumerate(m["sources"], 1):
+                score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
+                lines.append(f"**Source #{idx}** · Relevance: {score_str}")
+                lines.append(f"> {src['text']}\n")
+            lines.append("</details>")
+        lines.append("\n---\n")
+    return "\n".join(lines)
 
 # ---------------------------------------------------------------------------
 # Session State Initialization
@@ -385,28 +523,73 @@ if "last_query_time" not in st.session_state:
 if "query_count" not in st.session_state:
     st.session_state.query_count = 0
 
-if "mock_question" not in st.session_state:
-    st.session_state.mock_question = "How did you manage game state persistence, user progress tracking, and data security in your RPG-style learning platform without a traditional backend server?"
-
-if "generated_eval" not in st.session_state:
-    st.session_state.generated_eval = None
+if "telemetry" not in st.session_state:
+    st.session_state.telemetry = []
 
 api_key = get_api_key()
 
-# Helper for executing RAG retrieval
+# ---------------------------------------------------------------------------
+# Core RAG Execution with Re-ranking + Memory
+# ---------------------------------------------------------------------------
 def execute_rag(prompt_text: str):
+    """
+    Full pipeline:
+      1. Build conversation memory (last 4 turns)
+      2. Dense vector retrieval (top_k=5)
+      3. Cross-encoder re-ranking → select top 2
+      4. Gemini generation with memory + context
+      5. Return answer, sources, telemetry metadata
+    """
     if not api_key:
-        return "❌ **GOOGLE_API_KEY is missing!** Configure it in Streamlit Cloud Secrets.", []
+        return "❌ **GOOGLE_API_KEY is missing!** Configure it in Streamlit Cloud Secrets.", [], {}
+
+    telemetry = {}
+
+    # --- Build conversation memory ---
+    history_turns = st.session_state.messages[-8:]  # last 4 Q&A pairs
+    if history_turns:
+        history_lines = []
+        for m in history_turns:
+            if m["role"] == "user":
+                history_lines.append(f"User: {m['content']}")
+            else:
+                history_lines.append(f"Assistant: {m['content'][:250]}")
+        history_str = "\n".join(history_lines)
+    else:
+        history_str = ""
 
     if st.session_state.index is not None:
+        # --- Dense Retrieval ---
         t_ret_start = time.time()
-        retriever = st.session_state.index.as_retriever(similarity_top_k=2)
+        retriever = st.session_state.index.as_retriever(similarity_top_k=5)
         nodes = retriever.retrieve(prompt_text)
-        print(f"[NoteWise] Retrieved {len(nodes)} nodes in {time.time() - t_ret_start:.2f}s", flush=True)
+        t_ret_end = time.time()
+        retrieval_ms = round((t_ret_end - t_ret_start) * 1000)
+        print(f"[NoteWise] Retrieved {len(nodes)} nodes in {retrieval_ms}ms", flush=True)
 
+        # --- Cross-Encoder Re-ranking ---
+        reranked_nodes = nodes  # fallback if reranker fails
+        try:
+            reranker = load_reranker()
+            pairs = [(prompt_text, node.node.text) for node in nodes]
+            t_rerank_start = time.time()
+            rerank_scores = reranker.predict(pairs)
+            t_rerank_end = time.time()
+            rerank_ms = round((t_rerank_end - t_rerank_start) * 1000)
+            # Sort by rerank score descending, take top 2
+            ranked = sorted(zip(rerank_scores, nodes), key=lambda x: x[0], reverse=True)
+            reranked_nodes = [n for _, n in ranked[:2]]
+            print(f"[NoteWise] Re-ranked in {rerank_ms}ms, top score: {ranked[0][0]:.3f}", flush=True)
+            telemetry["rerank_ms"] = rerank_ms
+        except Exception as e:
+            rerank_ms = 0
+            print(f"[NoteWise] Re-ranker skipped: {e}", flush=True)
+            reranked_nodes = nodes[:2]
+
+        # --- Build context ---
         context_blocks = []
         sources = []
-        for i, node in enumerate(nodes, 1):
+        for i, node in enumerate(reranked_nodes, 1):
             clean_text = node.node.text.strip().replace("\n", " ")
             context_blocks.append(f"[Source {i}]: {clean_text}")
             sources.append({
@@ -415,24 +598,57 @@ def execute_rag(prompt_text: str):
             })
 
         context_str = "\n\n".join(context_blocks)
+
+        # --- Build RAG Prompt with Memory ---
+        memory_section = f"\n[CONVERSATION HISTORY]\n{history_str}\n" if history_str else ""
         rag_prompt = (
             "You are NoteWise, an executive document intelligence assistant and senior technical interview coach. "
             "Use the following retrieved context to answer the user's question accurately, deeply, and clearly. "
-            "Maintain an authentic, professional tone with crisp formatting, bold terms, and structured bullet points.\n\n"
-            f"--- CONTEXT ---\n{context_str}\n\n"
-            f"--- USER QUESTION ---\n{prompt_text}"
+            "Maintain an authentic, professional tone with crisp formatting, bold terms, and structured bullet points."
+            f"{memory_section}\n"
+            f"[RETRIEVED CONTEXT]\n{context_str}\n\n"
+            f"[CURRENT QUESTION]\n{prompt_text}"
         )
-        answer = generate_gemini_content(rag_prompt, api_key)
-        return answer, sources
+
+        # --- Generate ---
+        t_gen_start = time.time()
+        answer, model_used = generate_gemini_content(rag_prompt, api_key)
+        t_gen_end = time.time()
+        generation_ms = round((t_gen_end - t_gen_start) * 1000)
+
+        telemetry.update({
+            "retrieval_ms": retrieval_ms,
+            "generation_ms": generation_ms,
+            "model_used": model_used,
+            "chunks_retrieved": len(nodes),
+            "chunks_used": len(reranked_nodes),
+            "token_estimate": round(len(answer.split()) * 1.3),
+        })
+
+        return answer, sources, telemetry, context_str
+
     else:
+        # General mode (no document)
+        memory_section = f"\n[CONVERSATION HISTORY]\n{history_str}\n" if history_str else ""
         general_prompt = (
             "You are NoteWise, an intelligent AI copilot. "
             "The user has not uploaded any documents yet. Answer politely and concisely, "
-            "and encourage them to upload a PDF or resume in the sidebar to unlock vector search.\n\n"
+            "and encourage them to upload a PDF or resume in the sidebar to unlock vector search."
+            f"{memory_section}\n"
             f"User Query: {prompt_text}"
         )
-        answer = generate_gemini_content(general_prompt, api_key)
-        return answer, []
+        t_gen_start = time.time()
+        answer, model_used = generate_gemini_content(general_prompt, api_key)
+        generation_ms = round((time.time() - t_gen_start) * 1000)
+        telemetry = {
+            "retrieval_ms": 0,
+            "generation_ms": generation_ms,
+            "model_used": model_used,
+            "chunks_retrieved": 0,
+            "chunks_used": 0,
+            "token_estimate": round(len(answer.split()) * 1.3),
+        }
+        return answer, [], telemetry, ""
 
 # ---------------------------------------------------------------------------
 # Sidebar UI (Claude Style Sidebar)
@@ -455,7 +671,7 @@ with st.sidebar:
 
     if st.button("＋ New Chat", use_container_width=True):
         st.session_state.messages = []
-        st.session_state.generated_eval = None
+        st.session_state.telemetry = []
         st.rerun()
 
     st.markdown("---")
@@ -471,18 +687,17 @@ with st.sidebar:
         if not uploaded_files:
             st.warning("Please upload at least one file.")
         else:
-            with st.spinner("Indexing document..."):
-                index, msg, pages = process_uploaded_files(uploaded_files)
-                if index:
-                    st.session_state.index = index
-                    st.session_state.indexed_files = [f.name for f in uploaded_files]
-                    st.session_state.doc_stats = {
-                        "files": len(uploaded_files),
-                        "pages": pages
-                    }
-                    st.success(msg)
-                else:
-                    st.error(msg)
+            index, msg, pages = process_uploaded_files(uploaded_files)
+            if index:
+                st.session_state.index = index
+                st.session_state.indexed_files = [f.name for f in uploaded_files]
+                st.session_state.doc_stats = {
+                    "files": len(uploaded_files),
+                    "pages": pages
+                }
+                st.success(msg)
+            else:
+                st.error(msg)
 
     st.markdown("---")
     if st.session_state.index is not None:
@@ -492,6 +707,7 @@ with st.sidebar:
             <b>File:</b> {', '.join(st.session_state.indexed_files)}<br>
             <b>Pages:</b> {st.session_state.doc_stats['pages']}<br>
             <b>Retrieval:</b> BAAI/bge-small (~40ms)<br>
+            <b>Re-ranker:</b> ms-marco-MiniLM-L-6<br>
             <div style="margin-top: 8px;">
                 <span class="model-tag">Gemini 3 Cascade</span>
             </div>
@@ -504,6 +720,34 @@ with st.sidebar:
             Upload a document to enable citations and interview tools.
         </div>
         """, unsafe_allow_html=True)
+
+    # --- Session Telemetry Panel ---
+    if st.session_state.telemetry:
+        st.markdown("---")
+        with st.expander("📡 Session Telemetry", expanded=False):
+            for i, entry in enumerate(reversed(st.session_state.telemetry[-5:]), 1):
+                st.markdown(f"""
+                <div style="font-size: 0.75rem; color: #71717a; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #272522;">
+                    <span style="color: #a1a1aa; font-weight: 600;">Q{len(st.session_state.telemetry) - i + 1}</span>
+                    &nbsp;·&nbsp;<span style="color: #d97757;">{entry.get('model_used','?')}</span><br>
+                    ⚡ Retrieval: <b>{entry.get('retrieval_ms',0)}ms</b>
+                    &nbsp;|&nbsp; 🧠 Gen: <b>{entry.get('generation_ms',0)}ms</b><br>
+                    📦 Chunks: <b>{entry.get('chunks_used',0)}/{entry.get('chunks_retrieved',0)}</b>
+                    &nbsp;|&nbsp; ~<b>{entry.get('token_estimate',0)}</b> tokens
+                </div>
+                """, unsafe_allow_html=True)
+
+    # --- Export Chat ---
+    if st.session_state.messages:
+        st.markdown("---")
+        md_content = generate_markdown_export(st.session_state.messages)
+        st.download_button(
+            "⬇ Export Chat",
+            data=md_content,
+            file_name=f"notewise_session_{int(time.time())}.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
 
     remaining_queries = MAX_QUERIES_PER_SESSION - st.session_state.query_count
     st.caption(f"Session Quota: {remaining_queries}/{MAX_QUERIES_PER_SESSION} queries")
@@ -542,6 +786,30 @@ for msg in st.session_state.messages:
     else:
         with st.chat_message("assistant", avatar=bot_avatar):
             st.markdown(msg["content"])
+
+            # Telemetry + model badge row
+            if msg.get("model_used") or msg.get("retrieval_ms") is not None:
+                parts = []
+                if msg.get("model_used") and msg["model_used"] != "none":
+                    parts.append(f'<span class="model-tag">✦ {msg["model_used"]}</span>')
+                if msg.get("retrieval_ms") is not None and msg["retrieval_ms"] > 0:
+                    parts.append(f'<span style="font-size:0.72rem;color:#52525b;">⚡ {msg["retrieval_ms"]}ms retrieval · {msg.get("chunks_used",0)}/{msg.get("chunks_retrieved",0)} chunks · ~{msg.get("token_estimate",0)} tokens</span>')
+                if parts:
+                    st.markdown(f'<div class="telemetry-row" style="margin-top:8px;">{"&nbsp;&nbsp;".join(parts)}</div>', unsafe_allow_html=True)
+
+            # RAGAS Eval Badges
+            if msg.get("eval_scores"):
+                ev = msg["eval_scores"]
+                badges_html = '<div class="eval-badge-row">'
+                for label, key in [("🎯 Faithfulness", "faithfulness"), ("💡 Relevance", "relevance"), ("📋 Completeness", "completeness")]:
+                    score = ev.get(key)
+                    if score is not None:
+                        cls = score_badge_class(score)
+                        badges_html += f'<span class="eval-badge {cls}">{label} {score:.2f}</span>'
+                badges_html += "</div>"
+                st.markdown(badges_html, unsafe_allow_html=True)
+
+            # Source Citations
             if "sources" in msg and msg["sources"]:
                 with st.expander("📚 Retrieved Source Citations"):
                     for idx, src in enumerate(msg["sources"], 1):
@@ -549,21 +817,22 @@ for msg in st.session_state.messages:
                         st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
                         st.markdown(f"""<div class="claude-artifact-box">{src['text']}</div>""", unsafe_allow_html=True)
 
-# --- ALWAYS-VISIBLE SUGGESTIVE ACTION PILLS (Directly above the chat input box) ---
-st.markdown("<div style='margin-top: 24px; margin-bottom: 6px;'></div>", unsafe_allow_html=True)
-col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-with col_p1:
-    if st.button("📄 Executive Summary", use_container_width=True):
-        active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
-with col_p2:
-    if st.button("🛠️ Skills & Tech Stack", use_container_width=True):
-        active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
-with col_p3:
-    if st.button("🎙️ 60s Spoken Pitch", use_container_width=True):
-        active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
-with col_p4:
-    if st.button("🎯 Technical Questions", use_container_width=True):
-        active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
+# --- ALWAYS-VISIBLE SUGGESTIVE ACTION PILLS ---
+if not st.session_state.messages:
+    st.markdown("<div style='margin-top: 24px; margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+    with col_p1:
+        if st.button("📄 Executive Summary", use_container_width=True):
+            active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
+    with col_p2:
+        if st.button("🛠️ Skills & Tech Stack", use_container_width=True):
+            active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
+    with col_p3:
+        if st.button("🎙️ 60s Spoken Pitch", use_container_width=True):
+            active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
+    with col_p4:
+        if st.button("🎯 Technical Questions", use_container_width=True):
+            active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
 
 # Chat Input Box
 chat_val = st.chat_input("Ask NoteWise anything...")
@@ -591,10 +860,41 @@ if active_prompt:
 
     with st.chat_message("assistant", avatar=bot_avatar):
         with st.spinner(""):
-            answer, sources = execute_rag(active_prompt)
+            answer, sources, telemetry, context_str = execute_rag(active_prompt)
 
         st.write_stream(stream_typewriter(answer))
 
+        # Telemetry + model badge
+        model_used = telemetry.get("model_used", "")
+        retrieval_ms = telemetry.get("retrieval_ms", 0)
+        chunks_used = telemetry.get("chunks_used", 0)
+        chunks_retrieved = telemetry.get("chunks_retrieved", 0)
+        token_estimate = telemetry.get("token_estimate", 0)
+
+        parts = []
+        if model_used and model_used != "none":
+            parts.append(f'<span class="model-tag">✦ {model_used}</span>')
+        if retrieval_ms > 0:
+            parts.append(f'<span style="font-size:0.72rem;color:#52525b;">⚡ {retrieval_ms}ms retrieval · {chunks_used}/{chunks_retrieved} chunks · ~{token_estimate} tokens</span>')
+        if parts:
+            st.markdown(f'<div class="telemetry-row" style="margin-top:8px;">{"&nbsp;&nbsp;".join(parts)}</div>', unsafe_allow_html=True)
+
+        # RAGAS Eval (only if we have context = document mode)
+        eval_scores = {}
+        if context_str and sources:
+            with st.spinner("Evaluating response quality..."):
+                eval_scores = evaluate_rag_response(context_str, active_prompt, answer, api_key)
+            if eval_scores:
+                badges_html = '<div class="eval-badge-row">'
+                for label, key in [("🎯 Faithfulness", "faithfulness"), ("💡 Relevance", "relevance"), ("📋 Completeness", "completeness")]:
+                    score = eval_scores.get(key)
+                    if score is not None:
+                        cls = score_badge_class(score)
+                        badges_html += f'<span class="eval-badge {cls}">{label} {score:.2f}</span>'
+                badges_html += "</div>"
+                st.markdown(badges_html, unsafe_allow_html=True)
+
+        # Source Citations
         if sources:
             with st.expander("📚 Retrieved Source Citations"):
                 for idx, src in enumerate(sources, 1):
@@ -602,8 +902,18 @@ if active_prompt:
                     st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
                     st.markdown(f"""<div class="claude-artifact-box">{src['text']}</div>""", unsafe_allow_html=True)
 
+        # Log telemetry
+        st.session_state.telemetry.append(telemetry)
+
+        # Store message with all metadata
         st.session_state.messages.append({
             "role": "assistant",
             "content": answer,
-            "sources": sources
+            "sources": sources,
+            "model_used": model_used,
+            "retrieval_ms": retrieval_ms,
+            "chunks_used": chunks_used,
+            "chunks_retrieved": chunks_retrieved,
+            "token_estimate": token_estimate,
+            "eval_scores": eval_scores,
         })
