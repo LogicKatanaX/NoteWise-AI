@@ -167,3 +167,4 @@
 | **Cross-Encoder Re-Ranking** | **152.94 ms** (p50) | Joint token-level cross-attention eliminates semantic drift |
 | **Unit Test Coverage** | **34 / 34 Passed** | Tests chunking, BM25, RRF, semantic cache, guardrails, eval parsing |
 | **Continuous Integration** | **GitHub Actions CI** | Automated verification on every git push |
+
