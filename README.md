@@ -21,13 +21,16 @@
   <h3>
     🌐 <a href="https://notewise-ai-sarkar.streamlit.app">Experience the Live Application Here</a> &nbsp;|&nbsp; 📖 <a href="INTERVIEW_PREP.md">Technical Interview Defense Guide</a>
   </h3>
+
+  <br />
+  <img src="assets/og_preview.png" alt="NoteWise AI Flagship Dashboard Preview" width="100%" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.45);" />
 </div>
 
 ---
 
 ## 📌 Executive Overview
 
-**NoteWise AI** is an enterprise-grade document intelligence and technical interview platform engineered to eliminate two of the fundamental failure modes in production Retrieval-Augmented Generation (RAG): **vocabulary mismatch** and **hallucination drift**.
+NoteWise AI is an enterprise-grade document intelligence platform engineered to eliminate fundamental failure modes in production Retrieval-Augmented Generation (RAG): vocabulary mismatch and hallucination drift.
 
 Unlike basic single-stage vector demos, NoteWise AI implements a production-grade **4-stage hybrid retrieval architecture**:
 1. **⚡ Sub-0.2ms Semantic Vector Cache** for instant repeat query hits at $0 LLM token expenditure

@@ -55,6 +55,20 @@ if not IS_TESTING:
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    # Inject Open Graph & Twitter Social Share Metadata
+    st.html("""
+    <head>
+        <meta property="og:title" content="NoteWise AI | Production Document Intelligence Platform" />
+        <meta property="og:description" content="Production document intelligence platform with hybrid BM25 + dense semantic retrieval, Cross-Encoder re-ranking, and response grounding." />
+        <meta property="og:image" content="https://raw.githubusercontent.com/LogicKatanaX/NoteWise-AI/master/assets/og_preview.png" />
+        <meta property="og:url" content="https://notewise-ai-sarkar.streamlit.app" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="NoteWise AI | Production Document Intelligence Platform" />
+        <meta name="twitter:description" content="Production document intelligence platform with hybrid BM25 + dense semantic retrieval, Cross-Encoder re-ranking, and response grounding." />
+        <meta name="twitter:image" content="https://raw.githubusercontent.com/LogicKatanaX/NoteWise-AI/master/assets/og_preview.png" />
+    </head>
+    """)
 
 # ---------------------------------------------------------------------------
 # Claude.ai Dark Theme Exact Aesthetic Design System
