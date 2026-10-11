@@ -51,7 +51,7 @@ IS_TESTING = bool(os.environ.get("PYTEST_CURRENT_TEST"))
 if not IS_TESTING:
     st.set_page_config(
         page_title="NoteWise AI | Production Document Intelligence Platform",
-        page_icon=LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else "🧠",
+        page_icon=LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else None,
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -65,7 +65,7 @@ if not IS_TESTING:
     @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", system-ui, sans-serif;
         color: #f4f4f5;
         -webkit-font-smoothing: antialiased;
     }
@@ -111,9 +111,9 @@ if not IS_TESTING:
     /* Flagship Center Hero Section */
     .claude-hero-container {
         text-align: center;
-        margin-top: 2.2rem;
-        margin-bottom: 2.4rem;
-        animation: heroFadeIn 0.5s ease-out;
+        margin-top: 2rem;
+        margin-bottom: 1.8rem;
+        animation: heroFadeIn 0.4s ease-out;
     }
     @keyframes heroFadeIn {
         from { opacity: 0; transform: translateY(8px); }
@@ -123,27 +123,17 @@ if not IS_TESTING:
     .flagship-status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        background: rgba(217, 119, 87, 0.1);
-        border: 1px solid rgba(217, 119, 87, 0.3);
+        background: rgba(217, 119, 87, 0.08);
+        border: 1px solid rgba(217, 119, 87, 0.25);
         border-radius: 9999px;
-        padding: 5px 14px;
-        font-size: 0.72rem;
+        padding: 5px 16px;
+        font-size: 0.70rem;
         font-weight: 600;
-        letter-spacing: 0.07em;
+        letter-spacing: 0.09em;
         text-transform: uppercase;
         color: #e88d70;
-        margin-bottom: 14px;
-        box-shadow: 0 0 16px rgba(217, 119, 87, 0.12);
-    }
-
-    .hero-live-dot {
-        width: 6px;
-        height: 6px;
-        background-color: #d97757;
-        border-radius: 50%;
-        display: inline-block;
-        box-shadow: 0 0 8px #d97757;
+        margin-bottom: 18px;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
     }
 
     .hero-avatar-wrapper {
@@ -152,61 +142,34 @@ if not IS_TESTING:
         justify-content: center;
         width: 72px;
         height: 72px;
-        border-radius: 22px;
+        border-radius: 20px;
         background: radial-gradient(circle at 50% 30%, rgba(217, 119, 87, 0.22) 0%, rgba(28, 26, 24, 0.95) 75%);
         border: 1px solid rgba(217, 119, 87, 0.35);
         box-shadow: 0 0 35px rgba(217, 119, 87, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-        margin-bottom: 14px;
+        margin-bottom: 16px;
     }
 
     .claude-hero-title {
-        font-family: 'Newsreader', Georgia, serif;
-        font-size: 3.1rem;
-        font-weight: 400;
-        letter-spacing: -0.03em;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Newsreader", Georgia, serif;
+        font-size: 2.85rem;
+        font-weight: 500;
+        letter-spacing: -0.025em;
         color: #fafafa;
         margin: 0;
         line-height: 1.15;
     }
 
     .claude-hero-subtitle {
-        font-size: 1.02rem;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        font-size: 1rem;
         color: #8e8e93;
         margin-top: 10px;
-        margin-bottom: 20px;
+        margin-bottom: 8px;
         font-weight: 400;
         max-width: 620px;
         margin-left: auto;
         margin-right: auto;
         line-height: 1.55;
-    }
-
-    .hero-feature-chips {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 8px;
-    }
-
-    .feature-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 9999px;
-        padding: 5px 13px;
-        font-size: 0.74rem;
-        color: #a1a1aa;
-        font-weight: 500;
-        backdrop-filter: blur(8px);
-        transition: all 0.2s ease;
-    }
-    .feature-chip:hover {
-        border-color: rgba(217, 119, 87, 0.45);
-        color: #fafafa;
-        background: rgba(217, 119, 87, 0.08);
     }
 
     /* Claude Chat Messages */
@@ -329,27 +292,35 @@ if not IS_TESTING:
         font-size: 0.95rem !important;
     }
 
-    /* Action Buttons & Suggestive Action Cards */
+    /* Clean iOS Style Action Cards & Buttons */
     .stButton > button {
-        background: linear-gradient(180deg, #242220 0%, #1b1a18 100%) !important;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif !important;
+        background: rgba(255, 255, 255, 0.04) !important;
         border: 1px solid rgba(255, 255, 255, 0.09) !important;
         border-radius: 12px !important;
-        color: #d4d4d8 !important;
-        font-size: 0.82rem !important;
+        color: #f4f4f5 !important;
+        font-size: 0.90rem !important;
         font-weight: 500 !important;
-        padding: 8px 14px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        letter-spacing: -0.01em !important;
+        padding: 14px 22px !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        display: flex !important;
+        align-items: center !important;
+        width: 100% !important;
+        line-height: 1.4 !important;
+        margin-bottom: 8px !important;
         transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
     }
     .stButton > button:hover {
-        background: linear-gradient(180deg, #2c2925 0%, #201e1b 100%) !important;
-        border-color: rgba(217, 119, 87, 0.55) !important;
+        background: rgba(255, 255, 255, 0.075) !important;
+        border-color: rgba(217, 119, 87, 0.45) !important;
         color: #ffffff !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 18px rgba(217, 119, 87, 0.2) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
     }
     .stButton > button:active {
         transform: translateY(0) !important;
@@ -358,6 +329,9 @@ if not IS_TESTING:
         background: linear-gradient(180deg, #df7d5d 0%, #d97757 100%) !important;
         border: 1px solid #eb8868 !important;
         color: #ffffff !important;
+        justify-content: center !important;
+        text-align: center !important;
+        font-weight: 600 !important;
         box-shadow: 0 4px 14px rgba(217, 119, 87, 0.35) !important;
     }
     .stButton > button[kind="primary"]:hover {
@@ -917,18 +891,17 @@ with st.sidebar:
     else:
         st.markdown("""
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
-            <span style="font-size: 1.4rem;">🧠</span>
-            <span style="font-family: 'Newsreader', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 500;">NoteWise</span>
+            <span style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 600;">NoteWise</span>
         </div>
         """, unsafe_allow_html=True)
 
-    if st.button("＋ New Chat", use_container_width=True):
+    if st.button("+ New Chat", use_container_width=True):
         st.session_state.messages = []
         st.session_state.telemetry = []
         st.rerun()
 
     st.markdown("---")
-    st.markdown("##### 📁 Knowledge Base")
+    st.markdown("##### Knowledge Base")
     uploaded_files = st.file_uploader(
         "Upload PDF / Resume",
         type=["pdf", "txt", "md"],
@@ -969,10 +942,10 @@ with st.sidebar:
                 <span class="hybrid-tag" style="font-size: 0.68rem; padding: 2px 8px;">RRF</span>
             </div>
             <div style="color: #a1a1aa; font-size: 0.80rem; line-height: 1.65;">
-                <div>📁 <b>Files:</b> {files_str}</div>
-                <div>📑 <b>Pages:</b> {pages_count}</div>
-                <div>🎯 <b>Re-ranker:</b> ms-marco-MiniLM-L-6</div>
-                <div>⚡ <b>Cache:</b> {cache_entries} stored ({cache_hits} hits)</div>
+                <div><b>Files:</b> {files_str}</div>
+                <div><b>Pages:</b> {pages_count}</div>
+                <div><b>Re-ranker:</b> ms-marco-MiniLM-L-6</div>
+                <div><b>Cache:</b> {cache_entries} stored ({cache_hits} hits)</div>
             </div>
             <div style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
                 <span class="model-tag">Gemini 3 Cascade</span>
@@ -994,22 +967,22 @@ with st.sidebar:
         """, unsafe_allow_html=True)
 
     # --- System Architecture & Design Deep-Dive Toggle ---
-    if st.button("🏛️ System Architecture", use_container_width=True):
+    if st.button("System Architecture", use_container_width=True):
         st.session_state.show_architecture = not st.session_state.show_architecture
 
     # --- Session Telemetry Panel ---
     if st.session_state.telemetry:
         st.markdown("---")
-        with st.expander("📡 Session Telemetry", expanded=False):
+        with st.expander("Session Telemetry", expanded=False):
             for i, entry in enumerate(reversed(st.session_state.telemetry[-5:]), 1):
-                cache_badge = "⚡ <b>CACHE HIT</b>" if entry.get("is_cache_hit") else ""
+                cache_badge = "<b>CACHE HIT</b>" if entry.get("is_cache_hit") else ""
                 st.markdown(f"""
                 <div style="font-size: 0.75rem; color: #71717a; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #272522;">
                     <span style="color: #a1a1aa; font-weight: 600;">Q{len(st.session_state.telemetry) - i + 1}</span>
                     &nbsp;·&nbsp;<span style="color: #d97757;">{entry.get('model_used','?')}</span> {cache_badge}<br>
-                    ⚡ Retrieval: <b>{entry.get('retrieval_ms',0)}ms</b>
-                    &nbsp;|&nbsp; 🧠 Gen: <b>{entry.get('generation_ms',0)}ms</b><br>
-                    📦 Chunks: <b>{entry.get('chunks_used',0)}/{entry.get('chunks_retrieved',0)}</b>
+                    Retrieval: <b>{entry.get('retrieval_ms',0)}ms</b>
+                    &nbsp;|&nbsp; Gen: <b>{entry.get('generation_ms',0)}ms</b><br>
+                    Chunks: <b>{entry.get('chunks_used',0)}/{entry.get('chunks_retrieved',0)}</b>
                     &nbsp;|&nbsp; ~<b>{entry.get('token_estimate',0)}</b> tokens
                 </div>
                 """, unsafe_allow_html=True)
@@ -1019,7 +992,7 @@ with st.sidebar:
         st.markdown("---")
         md_content = generate_markdown_export(st.session_state.messages)
         st.download_button(
-            "⬇ Export Chat",
+            "Export Chat",
             data=md_content,
             file_name=f"notewise_session_{int(time.time())}.md",
             mime="text/markdown",
@@ -1031,7 +1004,7 @@ with st.sidebar:
 
     st.markdown("""
     <div style="margin-top: 30px; font-size: 0.82rem; color: #71717a; border-top: 1px solid #272522; padding-top: 14px;">
-        👤 User · Production Tier
+        User · Production Tier
     </div>
     """, unsafe_allow_html=True)
 
@@ -1042,8 +1015,7 @@ if st.session_state.show_architecture:
     st.markdown("""
     <div style="background: linear-gradient(180deg, #181716 0%, #131212 100%); border: 1px solid rgba(217, 119, 87, 0.28); border-radius: 18px; padding: 26px; margin-bottom: 26px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-            <span style="font-size: 1.3rem;">🏛️</span>
-            <h3 style="font-family: 'Newsreader', serif; margin: 0; font-size: 1.65rem; color: #fafafa; letter-spacing: -0.02em;">
+            <h3 style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', serif; margin: 0; font-size: 1.55rem; color: #fafafa; letter-spacing: -0.02em;">
                 NoteWise AI — Production Architecture & Engineering
             </h3>
         </div>
@@ -1053,7 +1025,7 @@ if st.session_state.show_architecture:
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
             <div style="background: #151413; padding: 16px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                    <span style="color: #c084fc; font-weight: 700; font-size: 0.9rem;">🔍 Hybrid Retrieval with RRF</span>
+                    <span style="color: #c084fc; font-weight: 700; font-size: 0.9rem;">Hybrid Retrieval with RRF</span>
                 </div>
                 <span style="font-size: 0.8rem; color: #8e8e93; line-height: 1.55; display: block;">
                     Dense vectors (BAAI/bge-small) capture semantic meaning, while Okapi BM25 captures exact acronyms, names, and code tokens. Fused via Reciprocal Rank Fusion (k=60).
@@ -1061,7 +1033,7 @@ if st.session_state.show_architecture:
             </div>
             <div style="background: #151413; padding: 16px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                    <span style="color: #4ade80; font-weight: 700; font-size: 0.9rem;">⚡ Semantic Vector Cache (&lt;0.2ms)</span>
+                    <span style="color: #4ade80; font-weight: 700; font-size: 0.9rem;">Semantic Vector Cache (&lt;0.2ms)</span>
                 </div>
                 <span style="font-size: 0.8rem; color: #8e8e93; line-height: 1.55; display: block;">
                     In-memory cosine cache matches incoming queries at &ge;0.95 similarity. Instant zero-cost return, saving LLM latency and API token quota.
@@ -1069,7 +1041,7 @@ if st.session_state.show_architecture:
             </div>
             <div style="background: #151413; padding: 16px; border-radius: 12px; border: 1px solid rgba(217, 119, 87, 0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                    <span style="color: #e88d70; font-weight: 700; font-size: 0.9rem;">🛡️ Cross-Encoder Re-Ranking</span>
+                    <span style="color: #e88d70; font-weight: 700; font-size: 0.9rem;">Cross-Encoder Re-Ranking</span>
                 </div>
                 <span style="font-size: 0.8rem; color: #8e8e93; line-height: 1.55; display: block;">
                     ms-marco-MiniLM-L-6-v2 evaluates full query-document cross-attention pairs to eliminate false positive vector retrievals before LLM generation.
@@ -1077,7 +1049,7 @@ if st.session_state.show_architecture:
             </div>
             <div style="background: #151413; padding: 16px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                    <span style="color: #38bdf8; font-weight: 700; font-size: 0.9rem;">📊 RAGAS Response Evaluation</span>
+                    <span style="color: #38bdf8; font-weight: 700; font-size: 0.9rem;">RAGAS Response Evaluation</span>
                 </div>
                 <span style="font-size: 0.8rem; color: #8e8e93; line-height: 1.55; display: block;">
                     Self-evaluating Gemini judge scores every answer on Faithfulness (groundedness), Relevance (intent alignment), and Completeness (context utilization).
@@ -1091,16 +1063,16 @@ if st.session_state.show_architecture:
 # Main Content Area (Claude Hero & Interaction)
 # ---------------------------------------------------------------------------
 active_prompt = None
-bot_avatar = LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else "✳"
+bot_avatar = LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else None
 
 # If no messages yet, show centered flagship hero greeting
 if not st.session_state.messages:
-    hero_logo = f'<img src="data:image/png;base64,{LOGO_B64}" width="52" height="52" style="border-radius: 14px;" />' if LOGO_B64 else '<span style="font-size: 2.2rem; color: #d97757;">✳</span>'
+    hero_logo = f'<img src="data:image/png;base64,{LOGO_B64}" width="52" height="52" style="border-radius: 14px;" />' if LOGO_B64 else ''
     st.markdown(f"""
     <div class="claude-hero-container">
         <div>
             <span class="flagship-status-badge">
-                <span class="hero-live-dot"></span> Production Document Intelligence Platform
+                Production Document Intelligence Platform
             </span>
         </div>
         <div class="hero-avatar-wrapper">
@@ -1112,14 +1084,19 @@ if not st.session_state.messages:
         <p class="claude-hero-subtitle">
             Search across documents, verify citations with hybrid BM25 + dense vectors, or prepare for technical interviews.
         </p>
-        <div class="hero-feature-chips">
-            <span class="feature-chip">⚡ &lt;0.2ms Semantic Cache</span>
-            <span class="feature-chip">🔍 Hybrid BM25 + Dense RRF</span>
-            <span class="feature-chip">🎯 ms-marco Re-Ranker</span>
-            <span class="feature-chip">🛡️ Gemini 3 Cascade</span>
-        </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Clean iOS Horizontal Action Cards (Top-Down Approach, Full Text, Zero Emojis)
+    st.markdown("<div style='margin-top: 16px; margin-bottom: 24px;'></div>", unsafe_allow_html=True)
+    if st.button("Executive Summary", use_container_width=True):
+        active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
+    if st.button("Key Skills and Technical Architecture", use_container_width=True):
+        active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
+    if st.button("60-Second Professional Elevator Pitch", use_container_width=True):
+        active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
+    if st.button("Technical Interview Questions", use_container_width=True):
+        active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
 
 # Render Message History
 for msg in st.session_state.messages:
@@ -1133,15 +1110,15 @@ for msg in st.session_state.messages:
             # Telemetry + model badge row
             parts = []
             if msg.get("is_cache_hit"):
-                parts.append('<span class="cache-tag">⚡ Semantic Cache Hit (&lt;5ms · $0 Cost)</span>')
+                parts.append('<span class="cache-tag">Semantic Cache Hit (&lt;0.2ms · $0 Cost)</span>')
             elif msg.get("model_used") and msg["model_used"] != "none":
-                parts.append(f'<span class="model-tag">✦ {msg["model_used"]}</span>')
+                parts.append(f'<span class="model-tag">{msg["model_used"]}</span>')
 
             if msg.get("hybrid_fused"):
                 parts.append('<span class="hybrid-tag">Hybrid RRF</span>')
 
             if msg.get("retrieval_ms") is not None and not msg.get("is_cache_hit") and msg["retrieval_ms"] > 0:
-                parts.append(f'<span style="font-size:0.72rem;color:#52525b;">⚡ {msg["retrieval_ms"]}ms retrieval · {msg.get("chunks_used",0)}/{msg.get("chunks_retrieved",0)} chunks · ~{msg.get("token_estimate",0)} tokens</span>')
+                parts.append(f'<span style="font-size:0.72rem;color:#71717a;">{msg["retrieval_ms"]}ms retrieval · {msg.get("chunks_used",0)}/{msg.get("chunks_retrieved",0)} chunks · ~{msg.get("token_estimate",0)} tokens</span>')
 
             if parts:
                 st.markdown(f'<div class="telemetry-row" style="margin-top:8px;">{"&nbsp;&nbsp;".join(parts)}</div>', unsafe_allow_html=True)
@@ -1150,7 +1127,7 @@ for msg in st.session_state.messages:
             if msg.get("eval_scores"):
                 ev = msg["eval_scores"]
                 badges_html = '<div class="eval-badge-row">'
-                for label, key in [("🎯 Faithfulness", "faithfulness"), ("💡 Relevance", "relevance"), ("📋 Completeness", "completeness")]:
+                for label, key in [("Faithfulness", "faithfulness"), ("Relevance", "relevance"), ("Completeness", "completeness")]:
                     score = ev.get(key)
                     if score is not None:
                         cls = score_badge_class(score)
@@ -1160,27 +1137,11 @@ for msg in st.session_state.messages:
 
             # Source Citations
             if "sources" in msg and msg["sources"]:
-                with st.expander("📚 Retrieved Source Citations"):
+                with st.expander("Retrieved Source Citations"):
                     for idx, src in enumerate(msg["sources"], 1):
                         score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
                         st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
                         st.markdown(f"""<div class="claude-artifact-box">{src['text']}</div>""", unsafe_allow_html=True)
-
-# --- ALWAYS-VISIBLE ONE-LINER SUGGESTIVE ACTION PILLS ---
-st.markdown("<div style='margin-top: 18px; margin-bottom: 8px;'></div>", unsafe_allow_html=True)
-col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-with col_p1:
-    if st.button("📄 Executive Summary", use_container_width=True):
-        active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
-with col_p2:
-    if st.button("🛠️ Skills & Tech Stack", use_container_width=True):
-        active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
-with col_p3:
-    if st.button("🎙️ 60s Spoken Pitch", use_container_width=True):
-        active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
-with col_p4:
-    if st.button("🎯 Technical Questions", use_container_width=True):
-        active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
 
 # Chat Input Box
 chat_val = st.chat_input("Ask NoteWise anything...")
@@ -1192,11 +1153,11 @@ if active_prompt:
     current_time = time.time()
     time_since_last = current_time - st.session_state.last_query_time
     if time_since_last < RATE_LIMIT_COOLDOWN:
-        st.toast("⏳ Please wait 1s before submitting another question.", icon="⚠️")
+        st.toast("Please wait 1s before submitting another question.")
         st.stop()
 
     if st.session_state.query_count >= MAX_QUERIES_PER_SESSION:
-        st.error("🚫 You have reached the maximum session query budget (35 queries). Please click 'New Chat' in the sidebar.")
+        st.error("You have reached the maximum session query budget (35 queries). Please click 'New Chat' in the sidebar.")
         st.stop()
 
     st.session_state.last_query_time = current_time
