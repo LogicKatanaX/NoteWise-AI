@@ -36,42 +36,48 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Premium ChatGPT / Claude / Gemini Aesthetic Design System
+# Claude.ai Light Theme Aesthetic Design System
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #1f1e1d;
     }
     
-    .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 3.5rem;
-        max-width: 1160px;
+    .stApp {
+        background-color: #faf9f5 !important;
     }
 
-    /* Claude & Gemini Inspired Radiant Header Card */
+    [data-testid="stSidebar"] {
+        background-color: #f4f3ed !important;
+        border-right: 1px solid #e7e4db !important;
+    }
+
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+        max-width: 1060px;
+    }
+
+    /* Claude Inspired Warm Header */
     .app-header {
-        background: radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.12) 0%, rgba(15, 23, 42, 0) 50%),
-                    radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.08) 0%, rgba(15, 23, 42, 0) 50%),
-                    linear-gradient(180deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.75) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        border-radius: 18px;
-        padding: 24px 28px;
+        background: #ffffff;
+        border: 1px solid #e8e6df;
+        border-radius: 16px;
+        padding: 28px 32px;
         margin-bottom: 24px;
-        backdrop-filter: blur(16px);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
     }
     
     .app-title {
-        font-size: 1.95rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        background: linear-gradient(135deg, #FFFFFF 20%, #CBD5E1 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-family: 'Newsreader', Georgia, serif;
+        font-size: 2.2rem;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+        color: #1f1e1d;
         margin-bottom: 6px;
         display: flex;
         align-items: center;
@@ -79,14 +85,14 @@ st.markdown("""
     }
 
     .app-subtitle {
-        font-size: 0.96rem;
-        color: #94A3B8;
+        font-size: 0.95rem;
+        color: #65635e;
         margin: 0;
         line-height: 1.5;
     }
 
     .badges-strip {
-        margin-top: 14px;
+        margin-top: 16px;
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
@@ -100,81 +106,131 @@ st.markdown("""
         font-weight: 600;
         padding: 4px 12px;
         border-radius: 9999px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #E2E8F0;
+        background: #f4f3ed;
+        border: 1px solid #e3dfd6;
+        color: #55534e;
     }
 
     .badge-pill-accent {
-        background: rgba(99, 102, 241, 0.15);
-        border-color: rgba(99, 102, 241, 0.4);
-        color: #818CF8;
+        background: rgba(217, 119, 87, 0.1);
+        border-color: rgba(217, 119, 87, 0.35);
+        color: #c26547;
     }
 
     .badge-pill-gemini {
-        background: rgba(56, 189, 248, 0.12);
-        border-color: rgba(56, 189, 248, 0.35);
-        color: #38BDF8;
+        background: #f0eee6;
+        border-color: #dedad0;
+        color: #44423e;
     }
 
-    /* Clean Card Container */
+    /* Clean Claude Card Containers */
     .pro-card {
-        background: rgba(30, 41, 59, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid #e8e6df;
+        border-radius: 12px;
         padding: 18px 22px;
         margin-bottom: 16px;
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
     }
     .pro-card:hover {
-        border-color: rgba(99, 102, 241, 0.35);
+        border-color: #d97757;
     }
 
-    /* Citation Box */
+    /* Claude Artifact Style Source Snippets */
     .source-snippet {
-        background: rgba(15, 23, 42, 0.7);
-        border-left: 3px solid #818CF8;
-        border-radius: 0 8px 8px 0;
+        background: #f7f6f0;
+        border-left: 3px solid #d97757;
+        border-radius: 0 6px 6px 0;
         padding: 10px 14px;
         margin-top: 6px;
         font-size: 0.84rem;
-        color: #CBD5E1;
+        color: #383734;
         line-height: 1.5;
         font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Sidebar Stat Block */
+    /* Sidebar Status Block */
     .sidebar-metric {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: #ffffff;
+        border: 1px solid #e5e2d8;
         border-radius: 10px;
         padding: 12px 14px;
         margin-top: 10px;
         font-size: 0.84rem;
-        color: #CBD5E1;
+        color: #4a4843;
         line-height: 1.6;
     }
 
-    /* Rating Pills */
-    .score-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-weight: 700;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        background: rgba(34, 197, 94, 0.15);
-        border: 1px solid rgba(34, 197, 94, 0.35);
-        color: #4ADE80;
-        margin-bottom: 12px;
+    /* Claude Chat Bubbles */
+    div[data-testid="stChatMessage"] {
+        background-color: transparent !important;
+        border: none !important;
+        padding: 12px 4px !important;
     }
 
-    /* Streamlit UI Tweaks */
+    /* User Message Bubble */
+    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
+        background-color: #f0eee6 !important;
+        border-radius: 14px !important;
+        padding: 14px 18px !important;
+        margin-bottom: 12px !important;
+    }
+
+    /* Claude Expander Styling */
     div[data-testid="stExpander"] {
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid #e7e4db !important;
         border-radius: 10px !important;
-        background: rgba(15, 23, 42, 0.35) !important;
+        background: #ffffff !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02) !important;
+    }
+
+    /* Claude Warm Buttons */
+    .stButton > button {
+        border-radius: 9999px !important;
+        border: 1px solid #dfdbd2 !important;
+        background-color: #ffffff !important;
+        color: #1f1e1d !important;
+        font-weight: 500 !important;
+        transition: all 0.15s ease !important;
+    }
+    .stButton > button:hover {
+        border-color: #d97757 !important;
+        color: #d97757 !important;
+        background-color: #faf5f2 !important;
+    }
+    .stButton > button[kind="primary"] {
+        background-color: #d97757 !important;
+        color: #ffffff !important;
+        border-color: #d97757 !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #c26547 !important;
+        border-color: #c26547 !important;
+        color: #ffffff !important;
+    }
+
+    /* Claude Floating Input Pill */
+    div[data-testid="stChatInput"] {
+        border-radius: 24px !important;
+        border: 1px solid #dfdbd2 !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+    }
+    div[data-testid="stChatInput"]:focus-within {
+        border-color: #d97757 !important;
+    }
+
+    /* Claude Style Tab Bar */
+    div[data-testid="stTabs"] button[role="tab"] {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-weight: 500 !important;
+        color: #78756f !important;
+        border-bottom: 2px solid transparent !important;
+    }
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+        color: #d97757 !important;
+        border-bottom: 2px solid #d97757 !important;
+        font-weight: 600 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -377,15 +433,15 @@ with st.sidebar:
         st.rerun()
 
 # ---------------------------------------------------------------------------
-# Main Content Header (Claude / Gemini Aesthetic)
+# Main Content Header (Claude.ai Editorial Aesthetic)
 # ---------------------------------------------------------------------------
 st.markdown("""
 <div class="app-header">
     <div class="app-title">
-        <span>🧠 NoteWise-AI</span>
+        <span style="color: #d97757; font-size: 1.8rem; font-style: normal;">✳</span> NoteWise
     </div>
     <p class="app-subtitle">
-        Production-grade Retrieval-Augmented Generation & Technical Interview Readiness Copilot
+        Document intelligence & technical interview copilot powered by dense vector retrieval and Gemini.
     </p>
     <div class="badges-strip">
         <span class="badge-pill badge-pill-accent">⚡ Sub-50ms Dense Retrieval</span>
