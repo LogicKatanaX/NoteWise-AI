@@ -5,6 +5,7 @@ import tempfile
 import streamlit as st
 import pypdf
 from google import genai
+from google.genai import types
 
 from llama_index.core import (
     VectorStoreIndex,
@@ -97,7 +98,7 @@ st.markdown("""
 # ---------------------------------------------------------------------------
 # Rate Limiting & Anti-Abuse
 # ---------------------------------------------------------------------------
-RATE_LIMIT_COOLDOWN = 1.5         # Seconds between submissions
+RATE_LIMIT_COOLDOWN = 1.0         # Fast responsiveness
 MAX_QUERIES_PER_SESSION = 35      # Session cap to prevent bot abuse
 
 def get_api_key():
@@ -122,16 +123,23 @@ def load_embedding_model():
 Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
-# Fast Token Streaming Generator (Instant Typewriter Effect)
+# Turbo Streaming Generator (thinking_budget=0 for instant response)
 # ---------------------------------------------------------------------------
 def stream_gemini_response(prompt: str, api_key: str):
-    """Streams response chunks in real-time as tokens arrive from Google."""
+    """Streams response chunks instantly by disabling slow thinking overhead."""
     client = genai.Client(api_key=api_key)
+    
+    # Bypass thinking delay to get instant sub-second first-token output
+    turbo_config = types.GenerateContentConfig(
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
+        temperature=0.2,
+    )
     
     try:
         stream = client.models.generate_content_stream(
             model="gemini-3.8-flash",
             contents=prompt,
+            config=turbo_config,
         )
         for chunk in stream:
             if chunk.text:
@@ -141,17 +149,17 @@ def stream_gemini_response(prompt: str, api_key: str):
         if "429" in err_msg or "resource_exhausted" in err_msg:
             yield "\n\n⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
         else:
-            # Fallback to secondary model if primary has a temporary issue
+            # Fallback without thinking config if model variant requires standard config
             try:
                 stream = client.models.generate_content_stream(
-                    model="gemini-2.5-flash",
+                    model="gemini-3.8-flash",
                     contents=prompt,
                 )
                 for chunk in stream:
                     if chunk.text:
                         yield chunk.text
-            except Exception:
-                yield f"\n\n❌ Error: {err_msg}"
+            except Exception as e2:
+                yield f"\n\n❌ Error: {str(e2)}"
 
 # ---------------------------------------------------------------------------
 # Clean Document Ingestion Logic
@@ -245,7 +253,7 @@ with st.sidebar:
             <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
             <b>Total Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
             <b>Embedding Model:</b> BAAI/bge-small-en-v1.5<br>
-            <b>Inference:</b> Google Gemini 3.8 Flash (Streaming)
+            <b>Inference:</b> Google Gemini 3.8 Flash (Turbo Stream)
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -269,7 +277,7 @@ st.markdown("""
     <div class="hero-title">🧠 NoteWise-AI</div>
     <p class="hero-subtitle">Production-grade Retrieval-Augmented Generation & Document Intelligence</p>
     <div class="hero-badges">
-        <span class="badge badge-accent">● Gemini 3.8 Flash (Live Stream)</span>
+        <span class="badge badge-accent">● Gemini 3.8 Flash (Turbo Stream)</span>
         <span class="badge">LlamaIndex Vector Core</span>
         <span class="badge">Dense Embeddings</span>
         <span class="badge">Source Citations</span>
@@ -308,7 +316,7 @@ for msg in st.session_state.messages:
                     st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Query Processing with Real-Time Typewriter Streaming
+# Fast Query Processing
 # ---------------------------------------------------------------------------
 chat_input_val = st.chat_input("Ask a question about the document...")
 active_prompt = preset_prompt or chat_input_val
@@ -317,7 +325,7 @@ if active_prompt:
     current_time = time.time()
     time_since_last = current_time - st.session_state.last_query_time
     if time_since_last < RATE_LIMIT_COOLDOWN:
-        st.toast(f"⏳ Please wait {RATE_LIMIT_COOLDOWN - time_since_last:.1f}s before sending another question.", icon="⚠️")
+        st.toast("⏳ Please wait 1s before sending another question.", icon="⚠️")
         st.stop()
 
     if st.session_state.query_count >= MAX_QUERIES_PER_SESSION:
@@ -341,45 +349,41 @@ if active_prompt:
         sources = []
         
         if st.session_state.index is not None:
-            # Stage 1: Active Progress Status
-            with st.status("Analyzing document...", expanded=False) as status:
-                st.write("🔍 Searching vector database for relevant passages...")
-                retriever = st.session_state.index.as_retriever(similarity_top_k=3)
-                nodes = retriever.retrieve(active_prompt)
+            # Fast retrieval: Top 2 highly targeted passages
+            retriever = st.session_state.index.as_retriever(similarity_top_k=2)
+            nodes = retriever.retrieve(active_prompt)
 
-                st.write(f"📄 Found {len(nodes)} relevant passage(s)...")
-                context_blocks = []
-                for i, node in enumerate(nodes, 1):
-                    clean_text = node.node.text.strip().replace("\n", " ")
-                    context_blocks.append(f"[Source {i}]: {clean_text}")
-                    sources.append({
-                        "score": node.score,
-                        "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
-                    })
+            context_blocks = []
+            for i, node in enumerate(nodes, 1):
+                clean_text = node.node.text.strip().replace("\n", " ")
+                context_blocks.append(f"[Source {i}]: {clean_text}")
+                sources.append({
+                    "score": node.score,
+                    "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
+                })
 
-                context_str = "\n\n".join(context_blocks)
-                rag_prompt = (
-                    "You are NoteWise-AI, an executive document intelligence assistant. "
-                    "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
-                    "Use clean markdown formatting. If the answer cannot be found in the context, state that clearly.\n\n"
-                    f"--- CONTEXT ---\n{context_str}\n\n"
-                    f"--- USER QUESTION ---\n{active_prompt}"
-                )
-                status.update(label="✅ Context extracted · Synthesizing response...", state="complete")
+            context_str = "\n\n".join(context_blocks)
+            rag_prompt = (
+                "You are NoteWise-AI, an executive document intelligence assistant. "
+                "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
+                "Be direct. Use clean markdown formatting. If the answer cannot be found in the context, state that clearly.\n\n"
+                f"--- CONTEXT ---\n{context_str}\n\n"
+                f"--- USER QUESTION ---\n{active_prompt}"
+            )
 
-            # Stage 2: Instant Typewriter Streaming
+            # Instant Turbo Streaming
             answer = st.write_stream(stream_gemini_response(rag_prompt, api_key))
 
         else:
             general_prompt = (
                 "You are NoteWise-AI, an intelligent document intelligence assistant. "
-                "The user has not uploaded any documents yet. Answer their query politely and professionally, "
+                "The user has not uploaded any documents yet. Answer their query politely, direct and concisely, "
                 "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
                 f"User Query: {active_prompt}"
             )
             answer = st.write_stream(stream_gemini_response(general_prompt, api_key))
 
-        # Show Source citations expander after stream completes
+        # Collapsible Sources
         if sources:
             with st.expander("📚 Retrieved Source Citations"):
                 for idx, src in enumerate(sources, 1):
