@@ -136,15 +136,30 @@ Settings.embed_model = load_embedding_model()
 # Fast & Reliable Gemini Inference
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> str:
-    """Generates text prioritizing Gemini 3.8 Flash with seamless rollover to high-quota models (2.5 & 1.5) on 429/503."""
+    """Generates text prioritizing Gemini 3.8 Flash with automatic fallback to Gemini 3.7 Flash and Gemini 3.5 Flash-Lite."""
     client = genai.Client(api_key=api_key)
-    candidate_models = [
-        "gemini-3.8-flash",
-        "gemini-2.5-flash",
-        "gemini-1.5-flash",
-    ]
-    last_error = None
     
+    # Priority order for active Gemini 3 family models
+    preferred = [
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.5-flash-lite",
+    ]
+    
+    # Dynamically discover all valid models available for this API key
+    candidate_models = list(preferred)
+    try:
+        discovered = []
+        for m in client.models.list():
+            m_id = m.name.replace("models/", "")
+            if ("flash" in m_id.lower() or "pro" in m_id.lower()) and m_id not in candidate_models:
+                discovered.append(m_id)
+        candidate_models.extend(discovered)
+        print(f"[NoteWise Valid Models on Project]: {candidate_models[:6]}", flush=True)
+    except Exception as e:
+        print(f"[NoteWise Models List warning]: {e}", flush=True)
+
+    last_error = None
     for model_name in candidate_models:
         try:
             print(f"[NoteWise] Querying {model_name}...", flush=True)
@@ -161,13 +176,12 @@ def generate_gemini_content(prompt: str, api_key: str) -> str:
             err_msg = str(e)
             last_error = e
             print(f"[NoteWise ⚠️] {model_name} unavailable ({err_msg[:80]}...). Rolling over to next model...", flush=True)
-            # 429 (exceeded daily quota of 20 on 3.8) or 503 (high demand): roll over to next model
             continue
 
     if last_error:
         err_str = str(last_error)
         if "429" in err_str or "resource_exhausted" in err_str:
-            return "⚠️ **Daily free tier API quota reached.** Please try again tomorrow or use your own API key in settings."
+            return "⚠️ **Daily API quota reached on free tier.** Please wait or provide your own API key in settings."
         raise last_error
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
