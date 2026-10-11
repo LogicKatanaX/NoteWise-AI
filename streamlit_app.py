@@ -136,21 +136,35 @@ Settings.embed_model = load_embedding_model()
 # Fast & Reliable Gemini Inference
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> str:
-    """Generates text from Google Gemini without socket hangs."""
+    """Generates text from Google Gemini with automatic model fallback and retries."""
     client = genai.Client(api_key=api_key)
     
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=prompt,
-        )
-        if response and response.text:
-            return response.text.strip()
-    except Exception as e:
-        err_msg = str(e)
-        if "429" in err_msg or "resource_exhausted" in err_msg:
-            return "⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
-        raise e
+    # Priority list of models in case of Google server 503 high demand spikes
+    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    last_error = None
+    
+    for model_name in candidate_models:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as e:
+                err_msg = str(e)
+                last_error = e
+                if "429" in err_msg or "resource_exhausted" in err_msg:
+                    return "⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
+                if "503" in err_msg or "UNAVAILABLE" in err_msg:
+                    time.sleep(1.0)
+                    continue
+                # For invalid model name or other issues, immediately try next candidate model
+                break
+
+    if last_error:
+        raise last_error
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
 
@@ -253,7 +267,7 @@ with st.sidebar:
             <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
             <b>Total Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
             <b>Embedding Model:</b> BAAI/bge-small-en-v1.5<br>
-            <b>Inference:</b> Google Gemini 3.8 Flash
+            <b>Inference:</b> Google Gemini 2.5 Flash
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -277,7 +291,7 @@ st.markdown("""
     <div class="hero-title">🧠 NoteWise-AI</div>
     <p class="hero-subtitle">Production-grade Retrieval-Augmented Generation & Document Intelligence</p>
     <div class="hero-badges">
-        <span class="badge badge-accent">● Gemini 3.8 Flash (Fast)</span>
+        <span class="badge badge-accent">● Gemini 2.5 Flash (Ultra Fast)</span>
         <span class="badge">LlamaIndex Vector Core</span>
         <span class="badge">Dense Embeddings</span>
         <span class="badge">Source Citations</span>
