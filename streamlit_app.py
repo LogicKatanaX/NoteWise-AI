@@ -29,14 +29,12 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Main container refinements */
     .block-container {
         padding-top: 2rem;
         padding-bottom: 3rem;
         max-width: 1100px;
     }
     
-    /* Header Card */
     .hero-card {
         background: linear-gradient(135deg, rgba(255, 75, 75, 0.08) 0%, rgba(30, 30, 30, 0.4) 100%);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -76,7 +74,6 @@ st.markdown("""
         color: #FF6B6B;
     }
 
-    /* Stat Card */
     .stat-box {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -86,7 +83,6 @@ st.markdown("""
         font-size: 0.85rem;
     }
     
-    /* Source Citation Expander */
     .source-box {
         background: rgba(255, 255, 255, 0.02);
         border-left: 3px solid #FF4B4B;
@@ -99,21 +95,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Rate Limiting & Abuse Prevention Constants
+# Rate Limiting & Anti-Abuse
 # ---------------------------------------------------------------------------
-RATE_LIMIT_COOLDOWN = 2.0         # Minimum seconds between requests
-MAX_QUERIES_PER_SESSION = 35      # Maximum queries per user session to prevent quota drain
+RATE_LIMIT_COOLDOWN = 1.5         # Seconds between submissions
+MAX_QUERIES_PER_SESSION = 35      # Session cap to prevent bot abuse
 
-# ---------------------------------------------------------------------------
-# API Key Management
-# ---------------------------------------------------------------------------
 def get_api_key():
     if "GOOGLE_API_KEY" in st.secrets:
         return st.secrets["GOOGLE_API_KEY"]
     return os.environ.get("GOOGLE_API_KEY", "")
 
 # ---------------------------------------------------------------------------
-# Embeddings & Inference Cache
+# Embedding Model Cache
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_embedding_model():
@@ -128,29 +121,37 @@ def load_embedding_model():
 
 Settings.embed_model = load_embedding_model()
 
-def generate_with_gemini(prompt: str, api_key: str):
-    """Generate response using Google's modern google-genai SDK with error handling."""
+# ---------------------------------------------------------------------------
+# Fast Token Streaming Generator (Instant Typewriter Effect)
+# ---------------------------------------------------------------------------
+def stream_gemini_response(prompt: str, api_key: str):
+    """Streams response chunks in real-time as tokens arrive from Google."""
     client = genai.Client(api_key=api_key)
     
-    for model_name in ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-            )
-            if response and response.text:
-                return response.text
-        except Exception as e:
-            err_str = str(e).lower()
-            if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
-                raise RuntimeError("API Rate limit reached. Please wait a moment before trying again.")
-            continue
-
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-    )
-    return response.text if response and response.text else "No response generated."
+    try:
+        stream = client.models.generate_content_stream(
+            model="gemini-3.8-flash",
+            contents=prompt,
+        )
+        for chunk in stream:
+            if chunk.text:
+                yield chunk.text
+    except Exception as e:
+        err_msg = str(e)
+        if "429" in err_msg or "resource_exhausted" in err_msg:
+            yield "\n\n⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
+        else:
+            # Fallback to secondary model if primary has a temporary issue
+            try:
+                stream = client.models.generate_content_stream(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                )
+                for chunk in stream:
+                    if chunk.text:
+                        yield chunk.text
+            except Exception:
+                yield f"\n\n❌ Error: {err_msg}"
 
 # ---------------------------------------------------------------------------
 # Clean Document Ingestion Logic
@@ -244,7 +245,7 @@ with st.sidebar:
             <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
             <b>Total Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
             <b>Embedding Model:</b> BAAI/bge-small-en-v1.5<br>
-            <b>Inference:</b> Google Gemini 3.8 Flash
+            <b>Inference:</b> Google Gemini 3.8 Flash (Streaming)
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -253,7 +254,6 @@ with st.sidebar:
 
     st.divider()
 
-    # Session Usage Counter (Recruiter Transparency)
     remaining_queries = MAX_QUERIES_PER_SESSION - st.session_state.query_count
     st.caption(f"Session Quota: {remaining_queries}/{MAX_QUERIES_PER_SESSION} queries remaining")
 
@@ -264,13 +264,12 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Main Content Area
 # ---------------------------------------------------------------------------
-# Hero Banner
 st.markdown("""
 <div class="hero-card">
     <div class="hero-title">🧠 NoteWise-AI</div>
     <p class="hero-subtitle">Production-grade Retrieval-Augmented Generation & Document Intelligence</p>
     <div class="hero-badges">
-        <span class="badge badge-accent">● Gemini 3.8 Flash</span>
+        <span class="badge badge-accent">● Gemini 3.8 Flash (Live Stream)</span>
         <span class="badge">LlamaIndex Vector Core</span>
         <span class="badge">Dense Embeddings</span>
         <span class="badge">Source Citations</span>
@@ -280,12 +279,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# 1-Click Starter Pills (Instant Demo for Recruiters)
+# 1-Click Starter Pills
 # ---------------------------------------------------------------------------
+preset_prompt = None
 if st.session_state.index is not None:
-    st.markdown("##### ⚡ Quick Prompts")
+    st.markdown("##### ⚡ Quick Actions")
     c1, c2, c3 = st.columns(3)
-    preset_prompt = None
 
     with c1:
         if st.button("📄 Executive Summary", use_container_width=True):
@@ -296,8 +295,6 @@ if st.session_state.index is not None:
     with c3:
         if st.button("🎯 Interview Questions", use_container_width=True):
             preset_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
-else:
-    preset_prompt = None
 
 # Render Message History
 for msg in st.session_state.messages:
@@ -311,29 +308,25 @@ for msg in st.session_state.messages:
                     st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Query Processing (Handles Text Input or Quick Prompts)
+# Query Processing with Real-Time Typewriter Streaming
 # ---------------------------------------------------------------------------
 chat_input_val = st.chat_input("Ask a question about the document...")
 active_prompt = preset_prompt or chat_input_val
 
 if active_prompt:
-    # 1. Rate Limiting Cooldown Check
     current_time = time.time()
     time_since_last = current_time - st.session_state.last_query_time
     if time_since_last < RATE_LIMIT_COOLDOWN:
-        st.toast(f"⏳ Cooldown active. Please wait {RATE_LIMIT_COOLDOWN - time_since_last:.1f}s before sending another question.", icon="⚠️")
+        st.toast(f"⏳ Please wait {RATE_LIMIT_COOLDOWN - time_since_last:.1f}s before sending another question.", icon="⚠️")
         st.stop()
 
-    # 2. Session Budget Check (Anti-Bot / Anti-Drain)
     if st.session_state.query_count >= MAX_QUERIES_PER_SESSION:
-        st.error("🚫 You have reached the maximum session query budget (35 queries). Please click 'Reset Chat' in the sidebar to start a new session.")
+        st.error("🚫 You have reached the maximum session query budget (35 queries). Please click 'Reset Chat' in the sidebar.")
         st.stop()
 
-    # Update cooldown & budget
     st.session_state.last_query_time = current_time
     st.session_state.query_count += 1
 
-    # Render User Message
     st.session_state.messages.append({"role": "user", "content": active_prompt})
     with st.chat_message("user"):
         st.markdown(active_prompt)
@@ -345,55 +338,57 @@ if active_prompt:
         st.stop()
 
     with st.chat_message("assistant"):
-        with st.spinner("Analyzing knowledge base..."):
-            try:
-                sources = []
-                if st.session_state.index is not None:
-                    # Semantic Retrieval via LlamaIndex
-                    retriever = st.session_state.index.as_retriever(similarity_top_k=3)
-                    nodes = retriever.retrieve(active_prompt)
+        sources = []
+        
+        if st.session_state.index is not None:
+            # Stage 1: Active Progress Status
+            with st.status("Analyzing document...", expanded=False) as status:
+                st.write("🔍 Searching vector database for relevant passages...")
+                retriever = st.session_state.index.as_retriever(similarity_top_k=3)
+                nodes = retriever.retrieve(active_prompt)
 
-                    context_blocks = []
-                    for i, node in enumerate(nodes, 1):
-                        clean_text = node.node.text.strip().replace("\n", " ")
-                        context_blocks.append(f"[Source {i}]: {clean_text}")
-                        sources.append({
-                            "score": node.score,
-                            "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
-                        })
+                st.write(f"📄 Found {len(nodes)} relevant passage(s)...")
+                context_blocks = []
+                for i, node in enumerate(nodes, 1):
+                    clean_text = node.node.text.strip().replace("\n", " ")
+                    context_blocks.append(f"[Source {i}]: {clean_text}")
+                    sources.append({
+                        "score": node.score,
+                        "text": clean_text[:280] + ("..." if len(clean_text) > 280 else "")
+                    })
 
-                    context_str = "\n\n".join(context_blocks)
-                    rag_prompt = (
-                        "You are NoteWise-AI, an executive document intelligence assistant. "
-                        "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
-                        "Use clean markdown formatting. If the answer cannot be found in the context, state that clearly.\n\n"
-                        f"--- CONTEXT ---\n{context_str}\n\n"
-                        f"--- USER QUESTION ---\n{active_prompt}"
-                    )
-                    answer = generate_with_gemini(rag_prompt, api_key)
-                else:
-                    general_prompt = (
-                        "You are NoteWise-AI, an intelligent document intelligence assistant. "
-                        "The user has not uploaded any documents yet. Answer their query politely and professionally, "
-                        "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
-                        f"User Query: {active_prompt}"
-                    )
-                    answer = generate_with_gemini(general_prompt, api_key)
+                context_str = "\n\n".join(context_blocks)
+                rag_prompt = (
+                    "You are NoteWise-AI, an executive document intelligence assistant. "
+                    "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
+                    "Use clean markdown formatting. If the answer cannot be found in the context, state that clearly.\n\n"
+                    f"--- CONTEXT ---\n{context_str}\n\n"
+                    f"--- USER QUESTION ---\n{active_prompt}"
+                )
+                status.update(label="✅ Context extracted · Synthesizing response...", state="complete")
 
-                st.markdown(answer)
+            # Stage 2: Instant Typewriter Streaming
+            answer = st.write_stream(stream_gemini_response(rag_prompt, api_key))
 
-                if sources:
-                    with st.expander("📚 Retrieved Source Citations"):
-                        for idx, src in enumerate(sources, 1):
-                            score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
-                            st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
-                            st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
+        else:
+            general_prompt = (
+                "You are NoteWise-AI, an intelligent document intelligence assistant. "
+                "The user has not uploaded any documents yet. Answer their query politely and professionally, "
+                "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
+                f"User Query: {active_prompt}"
+            )
+            answer = st.write_stream(stream_gemini_response(general_prompt, api_key))
 
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": answer,
-                    "sources": sources
-                })
+        # Show Source citations expander after stream completes
+        if sources:
+            with st.expander("📚 Retrieved Source Citations"):
+                for idx, src in enumerate(sources, 1):
+                    score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
+                    st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
+                    st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
-            except Exception as e:
-                st.error(f"Generation error: {str(e)}")
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer,
+            "sources": sources
+        })
