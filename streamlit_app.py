@@ -74,6 +74,16 @@ st.markdown("""
         border-color: rgba(255, 75, 75, 0.4);
         color: #FF6B6B;
     }
+    .badge-turbo {
+        background: rgba(0, 200, 83, 0.15);
+        border-color: rgba(0, 200, 83, 0.4);
+        color: #00E676;
+    }
+    .badge-deep {
+        background: rgba(156, 39, 176, 0.15);
+        border-color: rgba(156, 39, 176, 0.4);
+        color: #CE93D8;
+    }
 
     .stat-box {
         background: rgba(255, 255, 255, 0.03);
@@ -98,7 +108,7 @@ st.markdown("""
 # ---------------------------------------------------------------------------
 # Rate Limiting & Anti-Abuse
 # ---------------------------------------------------------------------------
-RATE_LIMIT_COOLDOWN = 1.0         # Fast responsiveness
+RATE_LIMIT_COOLDOWN = 1.0         # Seconds between submissions
 MAX_QUERIES_PER_SESSION = 35      # Session cap to prevent bot abuse
 
 def get_api_key():
@@ -123,23 +133,28 @@ def load_embedding_model():
 Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
-# Turbo Streaming Generator (thinking_budget=0 for instant response)
+# Streaming Generator (Interactive Thinking Toggle)
 # ---------------------------------------------------------------------------
-def stream_gemini_response(prompt: str, api_key: str):
-    """Streams response chunks instantly by disabling slow thinking overhead."""
+def stream_gemini_response(prompt: str, api_key: str, enable_thinking: bool = False):
+    """
+    Streams response chunks with customizable reasoning budget:
+    - Thinking OFF: thinking_budget=0 (Sub-second instant Turbo response)
+    - Thinking ON:  thinking_budget=2048 (In-depth deliberate reasoning)
+    """
     client = genai.Client(api_key=api_key)
     
-    # Bypass thinking delay to get instant sub-second first-token output
-    turbo_config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(thinking_budget=0),
-        temperature=0.2,
+    # Configure reasoning budget based on user toggle
+    budget = 2048 if enable_thinking else 0
+    config = types.GenerateContentConfig(
+        thinking_config=types.ThinkingConfig(thinking_budget=budget),
+        temperature=0.7 if enable_thinking else 0.2,
     )
     
     try:
         stream = client.models.generate_content_stream(
             model="gemini-3.8-flash",
             contents=prompt,
-            config=turbo_config,
+            config=config,
         )
         for chunk in stream:
             if chunk.text:
@@ -149,7 +164,6 @@ def stream_gemini_response(prompt: str, api_key: str):
         if "429" in err_msg or "resource_exhausted" in err_msg:
             yield "\n\n⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
         else:
-            # Fallback without thinking config if model variant requires standard config
             try:
                 stream = client.models.generate_content_stream(
                     model="gemini-3.8-flash",
@@ -245,15 +259,30 @@ with st.sidebar:
 
     st.divider()
 
+    # --- INFERENCE MODE TOGGLE ---
+    st.markdown("### ⚙️ Inference Controls")
+    enable_thinking = st.toggle(
+        "🧠 Deep Thinking Mode",
+        value=False,
+        help="Turn OFF for instant sub-second answers (Turbo Mode). Turn ON for in-depth deliberate reasoning on complex inquiries."
+    )
+    if enable_thinking:
+        st.caption("🟣 *Deep Reasoning active (higher analysis depth).*")
+    else:
+        st.caption("🟢 *Turbo Mode active (sub-second instant streaming).*")
+
+    st.divider()
+
     st.markdown("### 📊 Engine Status")
     if st.session_state.index is not None:
         st.success("● RAG Knowledge Base Active")
+        mode_label = "Deep Reasoning" if enable_thinking else "Turbo Stream"
         st.markdown(f"""
         <div class="stat-box">
             <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
             <b>Total Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
             <b>Embedding Model:</b> BAAI/bge-small-en-v1.5<br>
-            <b>Inference:</b> Google Gemini 3.8 Flash (Turbo Stream)
+            <b>Inference Mode:</b> {mode_label}
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -272,15 +301,18 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Main Content Area
 # ---------------------------------------------------------------------------
-st.markdown("""
+active_badge_class = "badge-deep" if enable_thinking else "badge-turbo"
+active_badge_text = "● Deep Reasoning ON" if enable_thinking else "⚡ Turbo Mode (Instant)"
+
+st.markdown(f"""
 <div class="hero-card">
     <div class="hero-title">🧠 NoteWise-AI</div>
     <p class="hero-subtitle">Production-grade Retrieval-Augmented Generation & Document Intelligence</p>
     <div class="hero-badges">
-        <span class="badge badge-accent">● Gemini 3.8 Flash (Turbo Stream)</span>
+        <span class="badge {active_badge_class}">{active_badge_text}</span>
+        <span class="badge">Gemini 3.8 Flash</span>
         <span class="badge">LlamaIndex Vector Core</span>
         <span class="badge">Dense Embeddings</span>
-        <span class="badge">Source Citations</span>
         <span class="badge">Anti-Abuse Guard</span>
     </div>
 </div>
@@ -316,7 +348,7 @@ for msg in st.session_state.messages:
                     st.markdown(f"""<div class="source-box">{src['text']}</div>""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Fast Query Processing
+# Query Processing (Handles Text Input or Quick Prompts)
 # ---------------------------------------------------------------------------
 chat_input_val = st.chat_input("Ask a question about the document...")
 active_prompt = preset_prompt or chat_input_val
@@ -349,7 +381,7 @@ if active_prompt:
         sources = []
         
         if st.session_state.index is not None:
-            # Fast retrieval: Top 2 highly targeted passages
+            # Laser-focused retrieval
             retriever = st.session_state.index.as_retriever(similarity_top_k=2)
             nodes = retriever.retrieve(active_prompt)
 
@@ -371,8 +403,8 @@ if active_prompt:
                 f"--- USER QUESTION ---\n{active_prompt}"
             )
 
-            # Instant Turbo Streaming
-            answer = st.write_stream(stream_gemini_response(rag_prompt, api_key))
+            # Stream with user's chosen reasoning mode
+            answer = st.write_stream(stream_gemini_response(rag_prompt, api_key, enable_thinking=enable_thinking))
 
         else:
             general_prompt = (
@@ -381,7 +413,7 @@ if active_prompt:
                 "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
                 f"User Query: {active_prompt}"
             )
-            answer = st.write_stream(stream_gemini_response(general_prompt, api_key))
+            answer = st.write_stream(stream_gemini_response(general_prompt, api_key, enable_thinking=enable_thinking))
 
         # Collapsible Sources
         if sources:
