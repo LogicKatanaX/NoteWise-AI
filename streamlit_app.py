@@ -25,12 +25,25 @@ from llama_index.core import (
 from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+import base64
+
 # ---------------------------------------------------------------------------
-# Page Configuration & Metadata
+# Page Configuration & Assets
 # ---------------------------------------------------------------------------
+LOGO_ICON_PATH = "assets/logo_icon.png"
+
+def get_base64_image(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return ""
+
+LOGO_B64 = get_base64_image(LOGO_ICON_PATH)
+
 st.set_page_config(
     page_title="NoteWise | AI Document Copilot",
-    page_icon="🧠",
+    page_icon=LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else "🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -425,12 +438,20 @@ def execute_rag(prompt_text: str):
 # Sidebar UI (Claude Style Sidebar)
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("""
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
-        <span style="font-size: 1.4rem;">🧠</span>
-        <span style="font-family: 'Newsreader', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 500;">NoteWise</span>
-    </div>
-    """, unsafe_allow_html=True)
+    if LOGO_B64:
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
+            <img src="data:image/png;base64,{LOGO_B64}" width="34" style="vertical-align: middle;" />
+            <span style="font-family: 'Newsreader', serif; font-size: 1.45rem; color: #f4f4f5; font-weight: 500;">NoteWise</span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
+            <span style="font-size: 1.4rem;">🧠</span>
+            <span style="font-family: 'Newsreader', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 500;">NoteWise</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     if st.button("＋ New Chat", use_container_width=True):
         st.session_state.messages = []
@@ -497,13 +518,15 @@ with st.sidebar:
 # Main Content Area (Claude Hero & Interaction)
 # ---------------------------------------------------------------------------
 active_prompt = None
+bot_avatar = LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else "✳"
 
-# If no messages yet, show centered Claude hero greeting
+# If no messages yet, show centered hero greeting
 if not st.session_state.messages:
-    st.markdown("""
+    hero_logo = f'<img src="data:image/png;base64,{LOGO_B64}" width="46" style="vertical-align: middle; margin-right: 8px;" />' if LOGO_B64 else '<span class="claude-flower">✳</span>'
+    st.markdown(f"""
     <div class="claude-hero-container">
         <h1 class="claude-hero-title">
-            <span class="claude-flower">✳</span> Back at it, User
+            {hero_logo} Back at it, User
         </h1>
         <p class="claude-hero-subtitle">
             What document or interview challenge would you like to explore today?
@@ -517,7 +540,7 @@ for msg in st.session_state.messages:
         with st.chat_message("user"):
             st.markdown(msg["content"])
     else:
-        with st.chat_message("assistant", avatar="✳"):
+        with st.chat_message("assistant", avatar=bot_avatar):
             st.markdown(msg["content"])
             if "sources" in msg and msg["sources"]:
                 with st.expander("📚 Retrieved Source Citations"):
@@ -566,7 +589,7 @@ if active_prompt:
     with st.chat_message("user"):
         st.markdown(active_prompt)
 
-    with st.chat_message("assistant", avatar="✳"):
+    with st.chat_message("assistant", avatar=bot_avatar):
         with st.spinner(""):
             answer, sources = execute_rag(active_prompt)
 
