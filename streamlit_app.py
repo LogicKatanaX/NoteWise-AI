@@ -42,7 +42,7 @@ def get_base64_image(path):
 LOGO_B64 = get_base64_image(LOGO_ICON_PATH)
 
 st.set_page_config(
-    page_title="NoteWise | AI Document Copilot",
+    page_title="NoteWise AI | Production Document Intelligence Platform",
     page_icon=LOGO_ICON_PATH if os.path.exists(LOGO_ICON_PATH) else "🧠",
     layout="wide",
     initial_sidebar_state="expanded",
