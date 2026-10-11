@@ -29,8 +29,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 # Page Configuration & Metadata
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="NoteWise | Claude-Inspired Copilot",
-    page_icon="✳",
+    page_title="NoteWise | AI Document Copilot",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -58,7 +58,7 @@ st.markdown("""
     }
 
     .block-container {
-        padding-top: 3.5rem;
+        padding-top: 2.5rem;
         padding-bottom: 5rem;
         max-width: 820px;
     }
@@ -199,9 +199,12 @@ st.markdown("""
         border: 1px solid #383531 !important;
         background-color: #22201e !important;
         color: #e4e4e7 !important;
-        font-size: 0.84rem !important;
+        font-size: 0.80rem !important;
         font-weight: 500 !important;
-        padding: 6px 16px !important;
+        padding: 6px 12px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
         transition: all 0.15s ease !important;
     }
     .stButton > button:hover {
@@ -231,15 +234,6 @@ st.markdown("""
         border-radius: 9999px;
         font-size: 0.72rem;
         font-weight: 600;
-    }
-
-    /* Evaluation Result Box */
-    .eval-card {
-        background-color: #1f1d1b;
-        border: 1px solid #33302c;
-        border-radius: 12px;
-        padding: 18px 22px;
-        margin-top: 14px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -433,8 +427,8 @@ def execute_rag(prompt_text: str):
 with st.sidebar:
     st.markdown("""
     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
-        <span style="color: #d97757; font-size: 1.5rem; font-style: normal;">✳</span>
-        <span style="font-family: 'Newsreader', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 500;">Claude</span>
+        <span style="font-size: 1.4rem;">🧠</span>
+        <span style="font-family: 'Newsreader', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 500;">NoteWise</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -495,7 +489,7 @@ with st.sidebar:
 
     st.markdown("""
     <div style="margin-top: 30px; font-size: 0.82rem; color: #71717a; border-top: 1px solid #272522; padding-top: 14px;">
-        👤 Santam · Free Plan
+        👤 User · Free Plan
     </div>
     """, unsafe_allow_html=True)
 
@@ -504,33 +498,18 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 active_prompt = None
 
-# If no messages yet, show Claude's signature centered home layout
+# If no messages yet, show centered Claude hero greeting
 if not st.session_state.messages:
     st.markdown("""
     <div class="claude-hero-container">
         <h1 class="claude-hero-title">
-            <span class="claude-flower">✳</span> Back at it, Santam
+            <span class="claude-flower">✳</span> Back at it, User
         </h1>
         <p class="claude-hero-subtitle">
             What document or interview challenge would you like to explore today?
         </p>
     </div>
     """, unsafe_allow_html=True)
-
-    # Claude Quick Action Pills
-    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-    with col_p1:
-        if st.button("📄 Executive Summary", use_container_width=True):
-            active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
-    with col_p2:
-        if st.button("🛠️ Skills & Tech Stack", use_container_width=True):
-            active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
-    with col_p3:
-        if st.button("🎙️ 60s Spoken Pitch", use_container_width=True):
-            active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
-    with col_p4:
-        if st.button("🎯 Technical Questions", use_container_width=True):
-            active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
 
 # Render Message History
 for msg in st.session_state.messages:
@@ -547,8 +526,24 @@ for msg in st.session_state.messages:
                         st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
                         st.markdown(f"""<div class="claude-artifact-box">{src['text']}</div>""", unsafe_allow_html=True)
 
+# --- ALWAYS-VISIBLE SUGGESTIVE ACTION PILLS (Directly above the chat input box) ---
+st.markdown("<div style='margin-top: 24px; margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+with col_p1:
+    if st.button("📄 Executive Summary", use_container_width=True):
+        active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
+with col_p2:
+    if st.button("🛠️ Skills & Tech Stack", use_container_width=True):
+        active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
+with col_p3:
+    if st.button("🎙️ 60s Spoken Pitch", use_container_width=True):
+        active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
+with col_p4:
+    if st.button("🎯 Technical Questions", use_container_width=True):
+        active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
+
 # Chat Input Box
-chat_val = st.chat_input("Reply to Claude...")
+chat_val = st.chat_input("Ask NoteWise anything...")
 if chat_val:
     active_prompt = chat_val
 
