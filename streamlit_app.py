@@ -29,14 +29,14 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 # Page Configuration & Metadata
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="NoteWise-AI | Executive Document & Interview Copilot",
-    page_icon="🧠",
+    page_title="NoteWise | Claude-Inspired Copilot",
+    page_icon="✳",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ---------------------------------------------------------------------------
-# Claude.ai Light Theme Aesthetic Design System
+# Claude.ai Dark Theme Exact Aesthetic Design System
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -44,159 +44,170 @@ st.markdown("""
 
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        color: #1f1e1d;
+        color: #f4f4f5;
     }
-    
+
+    /* Claude Deep Obsidian Backgrounds */
     .stApp {
-        background-color: #faf9f5 !important;
+        background-color: #18181b !important;
     }
 
     [data-testid="stSidebar"] {
-        background-color: #f4f3ed !important;
-        border-right: 1px solid #e7e4db !important;
+        background-color: #121214 !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
     }
 
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 4rem;
-        max-width: 1060px;
+        padding-top: 3.5rem;
+        padding-bottom: 5rem;
+        max-width: 820px;
     }
 
-    /* Claude Inspired Warm Header */
-    .app-header {
-        background: #ffffff;
-        border: 1px solid #e8e6df;
-        border-radius: 16px;
-        padding: 28px 32px;
-        margin-bottom: 24px;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+    /* Claude's Exact Center Heading */
+    .claude-hero-container {
+        text-align: center;
+        margin-top: 1.5rem;
+        margin-bottom: 2.2rem;
     }
     
-    .app-title {
+    .claude-hero-title {
         font-family: 'Newsreader', Georgia, serif;
-        font-size: 2.2rem;
-        font-weight: 500;
+        font-size: 2.75rem;
+        font-weight: 400;
         letter-spacing: -0.02em;
-        color: #1f1e1d;
-        margin-bottom: 6px;
-        display: flex;
+        color: #f4f4f5;
+        display: inline-flex;
         align-items: center;
-        gap: 12px;
-    }
-
-    .app-subtitle {
-        font-size: 0.95rem;
-        color: #65635e;
+        justify-content: center;
+        gap: 14px;
         margin: 0;
-        line-height: 1.5;
     }
 
-    .badges-strip {
-        margin-top: 16px;
+    .claude-flower {
+        color: #d97757;
+        font-size: 2.5rem;
+        line-height: 1;
+        display: inline-block;
+        font-style: normal;
+    }
+
+    .claude-hero-subtitle {
+        font-size: 0.95rem;
+        color: #71717a;
+        margin-top: 8px;
+        font-weight: 400;
+    }
+
+    /* Claude Floating Prompt Suggestion Pills */
+    .claude-pills-row {
         display: flex;
-        gap: 8px;
+        justify-content: center;
         flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+        margin-bottom: 24px;
     }
 
-    .badge-pill {
+    .claude-pill-btn {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 0.74rem;
-        font-weight: 600;
-        padding: 4px 12px;
+        background-color: #242220;
+        border: 1px solid #36332e;
+        color: #d4d4d8;
+        padding: 6px 14px;
         border-radius: 9999px;
-        background: #f4f3ed;
-        border: 1px solid #e3dfd6;
-        color: #55534e;
+        font-size: 0.82rem;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
     }
-
-    .badge-pill-accent {
-        background: rgba(217, 119, 87, 0.1);
-        border-color: rgba(217, 119, 87, 0.35);
-        color: #c26547;
-    }
-
-    .badge-pill-gemini {
-        background: #f0eee6;
-        border-color: #dedad0;
-        color: #44423e;
-    }
-
-    /* Clean Claude Card Containers */
-    .pro-card {
-        background: #ffffff;
-        border: 1px solid #e8e6df;
-        border-radius: 12px;
-        padding: 18px 22px;
-        margin-bottom: 16px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
-    }
-    .pro-card:hover {
+    .claude-pill-btn:hover {
+        background-color: #2e2b27;
         border-color: #d97757;
+        color: #f4f4f5;
     }
 
-    /* Claude Artifact Style Source Snippets */
-    .source-snippet {
-        background: #f7f6f0;
-        border-left: 3px solid #d97757;
-        border-radius: 0 6px 6px 0;
-        padding: 10px 14px;
-        margin-top: 6px;
-        font-size: 0.84rem;
-        color: #383734;
-        line-height: 1.5;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* Sidebar Status Block */
-    .sidebar-metric {
-        background: #ffffff;
-        border: 1px solid #e5e2d8;
-        border-radius: 10px;
-        padding: 12px 14px;
-        margin-top: 10px;
-        font-size: 0.84rem;
-        color: #4a4843;
-        line-height: 1.6;
-    }
-
-    /* Claude Chat Bubbles */
+    /* Claude Chat Messages */
     div[data-testid="stChatMessage"] {
         background-color: transparent !important;
         border: none !important;
-        padding: 12px 4px !important;
+        padding: 16px 0 !important;
     }
 
-    /* User Message Bubble */
+    /* User Message - Claude Style Dark Pill Card */
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
-        background-color: #f0eee6 !important;
-        border-radius: 14px !important;
-        padding: 14px 18px !important;
-        margin-bottom: 12px !important;
+        background-color: #272522 !important;
+        border: 1px solid #383531 !important;
+        border-radius: 16px !important;
+        padding: 14px 20px !important;
+        margin-bottom: 16px !important;
     }
 
-    /* Claude Expander Styling */
+    /* Claude Artifact / Source Box */
+    .claude-artifact-box {
+        background-color: #1f1d1b;
+        border: 1px solid #33302c;
+        border-left: 3px solid #d97757;
+        border-radius: 0 8px 8px 0;
+        padding: 12px 16px;
+        margin-top: 8px;
+        font-size: 0.83rem;
+        color: #d4d4d8;
+        font-family: 'JetBrains Mono', monospace;
+        line-height: 1.55;
+    }
+
+    /* Claude Sidebar Cards */
+    .sidebar-card {
+        background-color: #1a1918;
+        border: 1px solid #2e2c29;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-top: 12px;
+        font-size: 0.83rem;
+        color: #a1a1aa;
+        line-height: 1.6;
+    }
+
+    /* Claude Expander Drawer */
     div[data-testid="stExpander"] {
-        border: 1px solid #e7e4db !important;
-        border-radius: 10px !important;
-        background: #ffffff !important;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02) !important;
+        border: 1px solid #2e2c29 !important;
+        border-radius: 12px !important;
+        background-color: #1a1918 !important;
     }
 
-    /* Claude Warm Buttons */
+    /* Claude Floating Input Bar */
+    div[data-testid="stChatInput"] {
+        border-radius: 18px !important;
+        border: 1px solid #383531 !important;
+        background-color: #22201e !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+        padding: 4px !important;
+    }
+    div[data-testid="stChatInput"]:focus-within {
+        border-color: #d97757 !important;
+    }
+    div[data-testid="stChatInput"] textarea {
+        color: #f4f4f5 !important;
+    }
+
+    /* Claude Style Rounded Action Buttons */
     .stButton > button {
         border-radius: 9999px !important;
-        border: 1px solid #dfdbd2 !important;
-        background-color: #ffffff !important;
-        color: #1f1e1d !important;
+        border: 1px solid #383531 !important;
+        background-color: #22201e !important;
+        color: #e4e4e7 !important;
+        font-size: 0.84rem !important;
         font-weight: 500 !important;
+        padding: 6px 16px !important;
         transition: all 0.15s ease !important;
     }
     .stButton > button:hover {
         border-color: #d97757 !important;
         color: #d97757 !important;
-        background-color: #faf5f2 !important;
+        background-color: #2b2824 !important;
     }
     .stButton > button[kind="primary"] {
         background-color: #d97757 !important;
@@ -206,31 +217,29 @@ st.markdown("""
     .stButton > button[kind="primary"]:hover {
         background-color: #c26547 !important;
         border-color: #c26547 !important;
-        color: #ffffff !important;
     }
 
-    /* Claude Floating Input Pill */
-    div[data-testid="stChatInput"] {
-        border-radius: 24px !important;
-        border: 1px solid #dfdbd2 !important;
-        background-color: #ffffff !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
-    }
-    div[data-testid="stChatInput"]:focus-within {
-        border-color: #d97757 !important;
+    /* Model Pill Tag */
+    .model-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: rgba(217, 119, 87, 0.12);
+        border: 1px solid rgba(217, 119, 87, 0.35);
+        color: #d97757;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 600;
     }
 
-    /* Claude Style Tab Bar */
-    div[data-testid="stTabs"] button[role="tab"] {
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
-        font-weight: 500 !important;
-        color: #78756f !important;
-        border-bottom: 2px solid transparent !important;
-    }
-    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
-        color: #d97757 !important;
-        border-bottom: 2px solid #d97757 !important;
-        font-weight: 600 !important;
+    /* Evaluation Result Box */
+    .eval-card {
+        background-color: #1f1d1b;
+        border: 1px solid #33302c;
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-top: 14px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -238,8 +247,8 @@ st.markdown("""
 # ---------------------------------------------------------------------------
 # Rate Limiting & Anti-Abuse Guard
 # ---------------------------------------------------------------------------
-RATE_LIMIT_COOLDOWN = 1.0         # Seconds between submissions
-MAX_QUERIES_PER_SESSION = 35      # Session cap to prevent bot abuse
+RATE_LIMIT_COOLDOWN = 1.0
+MAX_QUERIES_PER_SESSION = 35
 
 def get_api_key():
     if "GOOGLE_API_KEY" in st.secrets:
@@ -251,7 +260,6 @@ def get_api_key():
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_embedding_model():
-    """Cache the local BGE embedding model across sessions."""
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
     Settings.transformations = [TokenTextSplitter(chunk_size=512, chunk_overlap=50)]
@@ -266,7 +274,6 @@ Settings.embed_model = load_embedding_model()
 # Multi-Tier Gemini 3 Cascade Engine
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> str:
-    """Generates text prioritizing Gemini 3.8 Flash with automatic cascade to 3.7 & 3.5 on 429/503."""
     client = genai.Client(api_key=api_key)
     
     preferred = [
@@ -308,13 +315,12 @@ def generate_gemini_content(prompt: str, api_key: str) -> str:
     if last_error:
         err_str = str(last_error)
         if "429" in err_str or "resource_exhausted" in err_str:
-            return "⚠️ **Daily API quota reached on free tier.** Please try again tomorrow or configure your own key in settings."
+            return "⚠️ **Daily API quota reached on free tier.** Please wait or configure your own key in settings."
         raise last_error
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
 
 def stream_typewriter(text: str, delay: float = 0.008):
-    """Smooth word-by-word typewriter animation."""
     words = text.split(" ")
     for i, word in enumerate(words):
         yield word + (" " if i < len(words) - 1 else "")
@@ -324,7 +330,6 @@ def stream_typewriter(text: str, delay: float = 0.008):
 # Document Ingestion Logic
 # ---------------------------------------------------------------------------
 def process_uploaded_files(uploaded_files):
-    """Parses clean text from PDFs and text files and builds the vector index."""
     try:
         documents = []
         total_pages = 0
@@ -373,94 +378,11 @@ if "last_query_time" not in st.session_state:
 if "query_count" not in st.session_state:
     st.session_state.query_count = 0
 
+if "mock_question" not in st.session_state:
+    st.session_state.mock_question = "How did you manage game state persistence, user progress tracking, and data security in your RPG-style learning platform without a traditional backend server?"
+
 if "generated_eval" not in st.session_state:
     st.session_state.generated_eval = None
-
-# ---------------------------------------------------------------------------
-# Sidebar UI (Control Center)
-# ---------------------------------------------------------------------------
-with st.sidebar:
-    st.markdown("### 🗂️ Knowledge Base")
-    uploaded_files = st.file_uploader(
-        "Upload Resume / PDF Document",
-        type=["pdf", "txt", "md"],
-        accept_multiple_files=True,
-        help="Upload your resume or any technical PDF to activate AI analysis and interview coaching."
-    )
-
-    if st.button("📥 Index Documents", use_container_width=True, type="primary"):
-        if not uploaded_files:
-            st.warning("Please upload at least one file.")
-        else:
-            with st.spinner("Parsing & embedding documents..."):
-                index, msg, pages = process_uploaded_files(uploaded_files)
-                if index:
-                    st.session_state.index = index
-                    st.session_state.indexed_files = [f.name for f in uploaded_files]
-                    st.session_state.doc_stats = {
-                        "files": len(uploaded_files),
-                        "pages": pages
-                    }
-                    st.success(msg)
-                else:
-                    st.error(msg)
-
-    st.divider()
-
-    st.markdown("### 📊 Engine Status")
-    if st.session_state.index is not None:
-        st.success("● RAG Knowledge Base Active")
-        st.markdown(f"""
-        <div class="sidebar-metric">
-            <b>Active Document:</b> {', '.join(st.session_state.indexed_files)}<br>
-            <b>Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
-            <b>Retrieval Engine:</b> BAAI/bge-small (~40ms)<br>
-            <b>Inference Cascade:</b> Gemini 3.8 ➔ 3.7 ➔ 3.5
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("○ General Mode (No documents loaded)")
-        st.caption("Upload a resume or PDF to unlock interview prep, architecture breakdowns, and verifiable citations.")
-
-    st.divider()
-
-    remaining_queries = MAX_QUERIES_PER_SESSION - st.session_state.query_count
-    st.caption(f"🛡️ Session Budget: {remaining_queries}/{MAX_QUERIES_PER_SESSION} queries remaining")
-
-    if st.button("🗑️ Reset Chat", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.generated_eval = None
-        st.rerun()
-
-# ---------------------------------------------------------------------------
-# Main Content Header (Claude.ai Editorial Aesthetic)
-# ---------------------------------------------------------------------------
-st.markdown("""
-<div class="app-header">
-    <div class="app-title">
-        <span style="color: #d97757; font-size: 1.8rem; font-style: normal;">✳</span> NoteWise
-    </div>
-    <p class="app-subtitle">
-        Document intelligence & technical interview copilot powered by dense vector retrieval and Gemini.
-    </p>
-    <div class="badges-strip">
-        <span class="badge-pill badge-pill-accent">⚡ Sub-50ms Dense Retrieval</span>
-        <span class="badge-pill badge-pill-gemini">● Gemini 3 High-Availability Cascade</span>
-        <span class="badge-pill">LlamaIndex Vector Core</span>
-        <span class="badge-pill">Verifiable Citations</span>
-        <span class="badge-pill">Anti-Abuse Guard</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ---------------------------------------------------------------------------
-# Navigation Tabs: Copilot Chat, Prep Kit, and Mock Interview
-# ---------------------------------------------------------------------------
-tab_chat, tab_prep, tab_mock = st.tabs([
-    "💬 Document Copilot & Chat",
-    "🎯 Interview Readiness Kit",
-    "🧠 Mock Interview & Self-Evaluation"
-])
 
 api_key = get_api_key()
 
@@ -487,10 +409,9 @@ def execute_rag(prompt_text: str):
 
         context_str = "\n\n".join(context_blocks)
         rag_prompt = (
-            "You are NoteWise-AI, an executive technical interview coach and document intelligence assistant. "
-            "Use the following retrieved context to answer the user's question accurately, professionally, and concisely. "
-            "Provide crisp, structured formatting with bold headings and clean bullet points. "
-            "If the answer is not present in the context, state that clearly.\n\n"
+            "You are NoteWise, an executive document intelligence assistant and senior technical interview coach. "
+            "Use the following retrieved context to answer the user's question accurately, deeply, and clearly. "
+            "Maintain an authentic, professional tone with crisp formatting, bold terms, and structured bullet points.\n\n"
             f"--- CONTEXT ---\n{context_str}\n\n"
             f"--- USER QUESTION ---\n{prompt_text}"
         )
@@ -498,211 +419,173 @@ def execute_rag(prompt_text: str):
         return answer, sources
     else:
         general_prompt = (
-            "You are NoteWise-AI, an intelligent document intelligence assistant. "
-            "The user has not uploaded any documents yet. Answer their query politely, direct and concisely, "
-            "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
+            "You are NoteWise, an intelligent AI copilot. "
+            "The user has not uploaded any documents yet. Answer politely and concisely, "
+            "and encourage them to upload a PDF or resume in the sidebar to unlock vector search.\n\n"
             f"User Query: {prompt_text}"
         )
         answer = generate_gemini_content(general_prompt, api_key)
         return answer, []
 
-# ===========================================================================
-# TAB 1: Document Copilot & Chat
-# ===========================================================================
-with tab_chat:
-    preset_prompt = None
+# ---------------------------------------------------------------------------
+# Sidebar UI (Claude Style Sidebar)
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
+        <span style="color: #d97757; font-size: 1.5rem; font-style: normal;">✳</span>
+        <span style="font-family: 'Newsreader', serif; font-size: 1.4rem; color: #f4f4f5; font-weight: 500;">Claude</span>
+    </div>
+    """, unsafe_allow_html=True)
 
+    if st.button("＋ New Chat", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.generated_eval = None
+        st.rerun()
+
+    st.markdown("---")
+    st.markdown("##### 📁 Knowledge Base")
+    uploaded_files = st.file_uploader(
+        "Upload PDF / Resume",
+        type=["pdf", "txt", "md"],
+        accept_multiple_files=True,
+        help="Upload your document to activate semantic search, citations, and interview preparation."
+    )
+
+    if st.button("Index Documents", use_container_width=True, type="primary"):
+        if not uploaded_files:
+            st.warning("Please upload at least one file.")
+        else:
+            with st.spinner("Indexing document..."):
+                index, msg, pages = process_uploaded_files(uploaded_files)
+                if index:
+                    st.session_state.index = index
+                    st.session_state.indexed_files = [f.name for f in uploaded_files]
+                    st.session_state.doc_stats = {
+                        "files": len(uploaded_files),
+                        "pages": pages
+                    }
+                    st.success(msg)
+                else:
+                    st.error(msg)
+
+    st.markdown("---")
     if st.session_state.index is not None:
-        st.markdown("##### ⚡ Quick Recruiter Actions")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("📄 Executive Summary", use_container_width=True):
-                preset_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
-        with c2:
-            if st.button("🛠️ Categorize Skills & Stack", use_container_width=True):
-                preset_prompt = "Extract and categorize all key technical skills, tools, frameworks, programming languages, and achievements mentioned in this document."
-        with c3:
-            if st.button("🎯 3 Core Technical Questions", use_container_width=True):
-                preset_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
+        st.markdown(f"""
+        <div class="sidebar-card">
+            <span style="color: #22c55e;">●</span> <b>Knowledge Base Active</b><br>
+            <b>File:</b> {', '.join(st.session_state.indexed_files)}<br>
+            <b>Pages:</b> {st.session_state.doc_stats['pages']}<br>
+            <b>Retrieval:</b> BAAI/bge-small (~40ms)<br>
+            <div style="margin-top: 8px;">
+                <span class="model-tag">Gemini 3 Cascade</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="sidebar-card">
+            <span style="color: #a1a1aa;">○</span> <b>General Mode</b><br>
+            Upload a document to enable citations and interview tools.
+        </div>
+        """, unsafe_allow_html=True)
 
-    # Render Chat History
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
+    remaining_queries = MAX_QUERIES_PER_SESSION - st.session_state.query_count
+    st.caption(f"Session Quota: {remaining_queries}/{MAX_QUERIES_PER_SESSION} queries")
+
+    st.markdown("""
+    <div style="margin-top: 30px; font-size: 0.82rem; color: #71717a; border-top: 1px solid #272522; padding-top: 14px;">
+        👤 Santam · Free Plan
+    </div>
+    """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Main Content Area (Claude Hero & Interaction)
+# ---------------------------------------------------------------------------
+active_prompt = None
+
+# If no messages yet, show Claude's signature centered home layout
+if not st.session_state.messages:
+    st.markdown("""
+    <div class="claude-hero-container">
+        <h1 class="claude-hero-title">
+            <span class="claude-flower">✳</span> Back at it, Santam
+        </h1>
+        <p class="claude-hero-subtitle">
+            What document or interview challenge would you like to explore today?
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Claude Quick Action Pills
+    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+    with col_p1:
+        if st.button("📄 Executive Summary", use_container_width=True):
+            active_prompt = "Provide a high-level executive summary of this document, highlighting its core message, background, and key takeaways."
+    with col_p2:
+        if st.button("🛠️ Skills & Tech Stack", use_container_width=True):
+            active_prompt = "Extract and categorize all key technical skills, tools, frameworks, and achievements mentioned in this document."
+    with col_p3:
+        if st.button("🎙️ 60s Spoken Pitch", use_container_width=True):
+            active_prompt = "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate based on their achievements."
+    with col_p4:
+        if st.button("🎯 Technical Questions", use_container_width=True):
+            active_prompt = "Generate 3 challenging technical interview questions based directly on the achievements and projects in this document."
+
+# Render Message History
+for msg in st.session_state.messages:
+    if msg["role"] == "user":
+        with st.chat_message("user"):
+            st.markdown(msg["content"])
+    else:
+        with st.chat_message("assistant", avatar="✳"):
             st.markdown(msg["content"])
             if "sources" in msg and msg["sources"]:
                 with st.expander("📚 Retrieved Source Citations"):
                     for idx, src in enumerate(msg["sources"], 1):
                         score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
                         st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
-                        st.markdown(f"""<div class="source-snippet">{src['text']}</div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div class="claude-artifact-box">{src['text']}</div>""", unsafe_allow_html=True)
 
-    # Chat Input Box
-    chat_input_val = st.chat_input("Ask any question about your document or resume...")
-    active_prompt = preset_prompt or chat_input_val
+# Chat Input Box
+chat_val = st.chat_input("Reply to Claude...")
+if chat_val:
+    active_prompt = chat_val
 
-    if active_prompt:
-        current_time = time.time()
-        time_since_last = current_time - st.session_state.last_query_time
-        if time_since_last < RATE_LIMIT_COOLDOWN:
-            st.toast("⏳ Please wait 1s before submitting another question.", icon="⚠️")
-            st.stop()
+# Process Query
+if active_prompt:
+    current_time = time.time()
+    time_since_last = current_time - st.session_state.last_query_time
+    if time_since_last < RATE_LIMIT_COOLDOWN:
+        st.toast("⏳ Please wait 1s before submitting another question.", icon="⚠️")
+        st.stop()
 
-        if st.session_state.query_count >= MAX_QUERIES_PER_SESSION:
-            st.error("🚫 You have reached the maximum session query budget (35 queries). Please click 'Reset Chat' in the sidebar.")
-            st.stop()
+    if st.session_state.query_count >= MAX_QUERIES_PER_SESSION:
+        st.error("🚫 You have reached the maximum session query budget (35 queries). Please click 'New Chat' in the sidebar.")
+        st.stop()
 
-        st.session_state.last_query_time = current_time
-        st.session_state.query_count += 1
+    st.session_state.last_query_time = current_time
+    st.session_state.query_count += 1
 
-        st.session_state.messages.append({"role": "user", "content": active_prompt})
-        with st.chat_message("user"):
-            st.markdown(active_prompt)
+    st.session_state.messages.append({"role": "user", "content": active_prompt})
+    with st.chat_message("user"):
+        st.markdown(active_prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing document with Gemini..."):
-                answer, sources = execute_rag(active_prompt)
+    with st.chat_message("assistant", avatar="✳"):
+        with st.spinner(""):
+            answer, sources = execute_rag(active_prompt)
 
-            st.write_stream(stream_typewriter(answer))
+        st.write_stream(stream_typewriter(answer))
 
-            if sources:
-                with st.expander("📚 Retrieved Source Citations"):
-                    for idx, src in enumerate(sources, 1):
-                        score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
-                        st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
-                        st.markdown(f"""<div class="source-snippet">{src['text']}</div>""", unsafe_allow_html=True)
+        if sources:
+            with st.expander("📚 Retrieved Source Citations"):
+                for idx, src in enumerate(sources, 1):
+                    score_str = f"{src['score']:.3f}" if src.get("score") is not None else "N/A"
+                    st.markdown(f"**Source #{idx}** &nbsp;·&nbsp; `Relevance: {score_str}`")
+                    st.markdown(f"""<div class="claude-artifact-box">{src['text']}</div>""", unsafe_allow_html=True)
 
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": answer,
-                "sources": sources
-            })
-
-# ===========================================================================
-# TAB 2: Interview Readiness Kit
-# ===========================================================================
-with tab_prep:
-    if st.session_state.index is None:
-        st.info("💡 Please upload and index a resume or document in the sidebar to activate the Interview Readiness Kit.")
-    else:
-        st.markdown("### 🎯 Career & Technical Interview Preparation Kit")
-        st.caption("Arm yourself with tailored spoken introductions, technical stack defense strategies, and project architecture breakdowns.")
-
-        col_p1, col_p2, col_p3 = st.columns(3)
-
-        with col_p1:
-            if st.button("🎙️ 60s Elevator Pitch ('Tell Me About Yourself')", use_container_width=True, type="primary"):
-                pitch_prompt = (
-                    "Write a crisp, powerful 60 to 90-second spoken 'Tell Me About Yourself' introduction for this candidate. "
-                    "Structure it for a high-stakes technical interview: "
-                    "1) Hook & Background (Degree, College, CGPA highlights); "
-                    "2) Technical Superpowers (Languages & Core competencies); "
-                    "3) Flagship Achievement Highlight (SIH finalist, top project, or major architecture); "
-                    "4) Forward-Looking Conclusion (What they are excited to build next). "
-                    "Keep it confident, natural, and conversational."
-                )
-                with st.spinner("Synthesizing your executive pitch..."):
-                    pitch_answer, _ = execute_rag(pitch_prompt)
-                    st.session_state["active_pitch"] = pitch_answer
-
-        with col_p2:
-            if st.button("🛠️ Tech Stack Defense & Trap Questions", use_container_width=True):
-                stack_prompt = (
-                    "Analyze the technologies and tools listed in this resume (e.g. C++, Python, Flask, React, SQLite, Linux, etc.). "
-                    "For the top 3-4 most prominent technologies, provide: "
-                    "1) The Exact Defense Question a Senior Engineer will ask (e.g., 'Why SQLite over Postgres?', 'How did you handle state?'); "
-                    "2) Common Traps (What beginners say wrong); "
-                    "3) The Gold Standard Answer (The architectural rationale the candidate should give based on their projects)."
-                )
-                with st.spinner("Extracting tech stack defense questions..."):
-                    stack_answer, _ = execute_rag(stack_prompt)
-                    st.session_state["active_stack"] = stack_answer
-
-        with col_p3:
-            if st.button("📂 Project Architecture & STAR Breakdown", use_container_width=True):
-                project_prompt = (
-                    "Select the key projects in this resume (such as the Waste-Segregation system, YouMe OS, or RPG learning platform). "
-                    "Break each down into the STAR framework for an engineering interview: "
-                    "- Situation & Problem: What real problem did it solve? "
-                    "- Task & Architecture: The tech stack, concurrency, zero-backend, or hardware-software pipeline. "
-                    "- Action & Implementation: Key technical choices made. "
-                    "- Results & Challenges: Scalability limits, latency, or edge cases overcome."
-                )
-                with st.spinner("Breaking down project architectures..."):
-                    project_answer, _ = execute_rag(project_prompt)
-                    st.session_state["active_projects"] = project_answer
-
-        # Display results in clean cards
-        if "active_pitch" in st.session_state:
-            with st.expander("🎙️ Your 60-Second Spoken Elevator Pitch", expanded=True):
-                st.markdown(st.session_state["active_pitch"])
-
-        if "active_stack" in st.session_state:
-            with st.expander("🛠️ Tech Stack Defense & Engineering Trade-Offs", expanded=True):
-                st.markdown(st.session_state["active_stack"])
-
-        if "active_projects" in st.session_state:
-            with st.expander("📂 Deep Project Breakdown (STAR Method)", expanded=True):
-                st.markdown(st.session_state["active_projects"])
-
-# ===========================================================================
-# TAB 3: Mock Interview & Self-Evaluation Simulator
-# ===========================================================================
-with tab_mock:
-    if st.session_state.index is None:
-        st.info("💡 Please upload and index your resume in the sidebar to simulate an interactive mock interview.")
-    else:
-        st.markdown("### 🧠 Interactive Mock Interview & Self-Evaluation")
-        st.caption("Practice answering challenging technical questions derived directly from your resume. Receive immediate scoring, blindspot detection, and dynamic senior follow-ups.")
-
-        # Question Selection / Generation
-        if "mock_question" not in st.session_state:
-            st.session_state.mock_question = "How did you manage game state persistence, user progress tracking, and data security in your RPG-style learning platform without a traditional backend server?"
-
-        if st.button("🔄 Generate New Interview Challenge", use_container_width=False):
-            with st.spinner("Formulating technical challenge from your projects..."):
-                q_prompt = (
-                    "Generate ONE single challenging technical interview question based specifically on the candidate's projects or architecture claims in the document. "
-                    "Make it deep and specific (e.g., about concurrency, sensor sync, state persistence, or database choices). "
-                    "Output ONLY the question text."
-                )
-                new_q, _ = execute_rag(q_prompt)
-                st.session_state.mock_question = new_q
-                st.session_state.generated_eval = None
-
-        st.markdown(f"""
-        <div class="pro-card" style="border-left: 4px solid #6366F1;">
-            <b>Interviewer's Question:</b><br>
-            <span style="font-size: 1.05rem; color: #FFFFFF; font-weight: 600;">{st.session_state.mock_question}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        user_answer = st.text_area(
-            "Your Answer (Type how you would respond in the interview):",
-            placeholder="Explain your architectural choices, state management, edge cases, and why you designed it this way...",
-            height=160
-        )
-
-        if st.button("🚀 Evaluate My Answer & Give Follow-up", type="primary", use_container_width=True):
-            if not user_answer or len(user_answer.strip()) < 15:
-                st.warning("Please write a detailed technical response so NoteWise can accurately evaluate your readiness.")
-            else:
-                eval_prompt = (
-                    "You are a Staff Software Engineer and Senior Technical Hiring Manager conducting an interview. "
-                    f"Question Asked: '{st.session_state.mock_question}'\n\n"
-                    f"Candidate's Answer: '{user_answer}'\n\n"
-                    "Evaluate the candidate's response rigorously. Format your assessment with: "
-                    "1. **Readiness Score (out of 10)**: Give a realistic rating (e.g., 7.5/10 - Solid Concept, Light on Edge Cases). "
-                    "2. **What Was Strong**: Specific good points mentioned. "
-                    "3. **Critical Blindspots & Missing Points**: What the candidate neglected (e.g., latency, failure modes, data tampering, security, scale). "
-                    "4. **The Model Answer**: How a Senior/Staff Engineer would phrase this answer in 3 concise bullet points. "
-                    "5. **Dynamic Follow-Up Question**: Formulate the exact tough follow-up question the interviewer would ask next to test them further."
-                )
-                with st.spinner("Analyzing your response & formulating feedback..."):
-                    eval_result, _ = execute_rag(eval_prompt)
-                    st.session_state.generated_eval = eval_result
-
-        # Display Evaluation
-        if st.session_state.generated_eval:
-            st.markdown("---")
-            st.markdown("### 📋 Evaluation & Interview Feedback")
-            st.markdown(st.session_state.generated_eval)
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer,
+            "sources": sources
+        })
