@@ -9,6 +9,7 @@ from llama_index.core import (
     SimpleDirectoryReader,
     Settings,
 )
+from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # ---------------------------------------------------------------------------
@@ -37,6 +38,7 @@ def load_embedding_model():
     """Cache the local BGE embedding model across sessions."""
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
+    Settings.transformations = [TokenTextSplitter(chunk_size=512, chunk_overlap=50)]
     return HuggingFaceEmbedding(
         model_name="BAAI/bge-small-en-v1.5",
         device="cpu"
@@ -83,7 +85,8 @@ def process_uploaded_files(uploaded_files):
         if not documents:
             return None, "No readable content found in uploaded files."
 
-        index = VectorStoreIndex.from_documents(documents)
+        splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=50)
+        index = VectorStoreIndex.from_documents(documents, transformations=[splitter])
         return index, f"Successfully indexed {len(documents)} chunk(s) from {len(uploaded_files)} file(s)!"
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
