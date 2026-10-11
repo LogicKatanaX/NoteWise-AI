@@ -1,11 +1,21 @@
 import os
+
+# Prevent PyTorch & Tokenizer deadlocks on Streamlit Community Cloud
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 import time
 import shutil
 import tempfile
+import torch
+
+# Force single-threaded PyTorch to prevent OpenMP container freeze
+torch.set_num_threads(1)
+
 import streamlit as st
 import pypdf
 from google import genai
-from google.genai import types
 
 from llama_index.core import (
     VectorStoreIndex,
@@ -74,16 +84,6 @@ st.markdown("""
         border-color: rgba(255, 75, 75, 0.4);
         color: #FF6B6B;
     }
-    .badge-turbo {
-        background: rgba(0, 200, 83, 0.15);
-        border-color: rgba(0, 200, 83, 0.4);
-        color: #00E676;
-    }
-    .badge-deep {
-        background: rgba(156, 39, 176, 0.15);
-        border-color: rgba(156, 39, 176, 0.4);
-        color: #CE93D8;
-    }
 
     .stat-box {
         background: rgba(255, 255, 255, 0.03);
@@ -133,47 +133,29 @@ def load_embedding_model():
 Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
-# Reliable Generation Logic (Supports Thinking Mode Toggle)
+# Fast & Reliable Gemini Inference
 # ---------------------------------------------------------------------------
-def generate_gemini_content(prompt: str, api_key: str, enable_thinking: bool = False) -> str:
-    """Generates complete text response reliably from Google Gemini 3.8 Flash."""
+def generate_gemini_content(prompt: str, api_key: str) -> str:
+    """Generates text from Google Gemini without socket hangs."""
     client = genai.Client(api_key=api_key)
     
-    # Configure reasoning budget if Thinking Mode is enabled
-    config = None
-    if enable_thinking:
-        try:
-            config = types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=2048),
-                temperature=0.7,
-            )
-        except Exception:
-            config = None
-
     try:
-        if config:
-            response = client.models.generate_content(
-                model="gemini-3.8-flash",
-                contents=prompt,
-                config=config,
-            )
-        else:
-            response = client.models.generate_content(
-                model="gemini-3.8-flash",
-                contents=prompt,
-            )
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=prompt,
+        )
+        if response and response.text:
+            return response.text.strip()
     except Exception as e:
         err_msg = str(e)
         if "429" in err_msg or "resource_exhausted" in err_msg:
             return "⚠️ **API Rate limit reached.** Please wait 10 seconds before asking another question."
         raise e
 
-    if response and response.text:
-        return response.text.strip()
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way."
 
-def stream_typewriter(text: str, delay: float = 0.012):
-    """Streams text word-by-word for an engaging real-time typewriter effect."""
+def stream_typewriter(text: str, delay: float = 0.008):
+    """Smooth word-by-word typewriter animation."""
     words = text.split(" ")
     for i, word in enumerate(words):
         yield word + (" " if i < len(words) - 1 else "")
@@ -263,30 +245,15 @@ with st.sidebar:
 
     st.divider()
 
-    # --- INFERENCE MODE TOGGLE ---
-    st.markdown("### ⚙️ Inference Controls")
-    enable_thinking = st.toggle(
-        "🧠 Deep Thinking Mode",
-        value=False,
-        help="Turn OFF for fast instant answers (Turbo Mode). Turn ON for in-depth deliberate reasoning on complex inquiries."
-    )
-    if enable_thinking:
-        st.caption("🟣 *Deep Reasoning active (higher analysis depth).*")
-    else:
-        st.caption("🟢 *Turbo Mode active (fast instant responses).*")
-
-    st.divider()
-
     st.markdown("### 📊 Engine Status")
     if st.session_state.index is not None:
         st.success("● RAG Knowledge Base Active")
-        mode_label = "Deep Reasoning" if enable_thinking else "Turbo"
         st.markdown(f"""
         <div class="stat-box">
             <b>Active Documents:</b> {st.session_state.doc_stats['files']}<br>
             <b>Total Pages Read:</b> {st.session_state.doc_stats['pages']}<br>
             <b>Embedding Model:</b> BAAI/bge-small-en-v1.5<br>
-            <b>Inference Mode:</b> {mode_label}
+            <b>Inference:</b> Google Gemini 3.8 Flash
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -305,18 +272,15 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Main Content Area
 # ---------------------------------------------------------------------------
-active_badge_class = "badge-deep" if enable_thinking else "badge-turbo"
-active_badge_text = "● Deep Reasoning ON" if enable_thinking else "⚡ Turbo Mode"
-
-st.markdown(f"""
+st.markdown("""
 <div class="hero-card">
     <div class="hero-title">🧠 NoteWise-AI</div>
     <p class="hero-subtitle">Production-grade Retrieval-Augmented Generation & Document Intelligence</p>
     <div class="hero-badges">
-        <span class="badge {active_badge_class}">{active_badge_text}</span>
-        <span class="badge">Gemini 3.8 Flash</span>
+        <span class="badge badge-accent">● Gemini 3.8 Flash (Fast)</span>
         <span class="badge">LlamaIndex Vector Core</span>
         <span class="badge">Dense Embeddings</span>
+        <span class="badge">Source Citations</span>
         <span class="badge">Anti-Abuse Guard</span>
     </div>
 </div>
@@ -408,7 +372,7 @@ if active_prompt:
                         f"--- USER QUESTION ---\n{active_prompt}"
                     )
 
-                    answer = generate_gemini_content(rag_prompt, api_key, enable_thinking=enable_thinking)
+                    answer = generate_gemini_content(rag_prompt, api_key)
 
                 else:
                     general_prompt = (
@@ -417,7 +381,7 @@ if active_prompt:
                         "and encourage them to upload a PDF or text file in the sidebar to activate knowledge search.\n\n"
                         f"User Query: {active_prompt}"
                     )
-                    answer = generate_gemini_content(general_prompt, api_key, enable_thinking=enable_thinking)
+                    answer = generate_gemini_content(general_prompt, api_key)
 
             except Exception as e:
                 answer = f"❌ Error: {str(e)}"
