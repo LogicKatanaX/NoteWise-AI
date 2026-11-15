@@ -20,6 +20,7 @@ torch.set_num_threads(1)
 import streamlit as st
 import pypdf
 from google import genai
+from google.genai import types
 
 from llama_index.core import (
     VectorStoreIndex,
@@ -491,36 +492,26 @@ if not IS_TESTING:
     Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
-# Multi-Tier Gemini 2.0 Cascade Engine
+# Multi-Tier Ultra-Fast Gemini Engine
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
-    """Returns (answer_text, model_name_used). Resilient fallback with zero unhandled crashes."""
+    """Returns (answer_text, model_name_used). Ultra-fast generation with zero indefinite hangs."""
     if not api_key:
-        return "⚠️ **No Gemini API key detected.** Please configure `GOOGLE_API_KEY` in Streamlit Cloud Secrets or enter your key in the sidebar.", "none"
+        return "⚠️ **No Gemini API key detected.** Please configure `GOOGLE_API_KEY` in Streamlit Cloud Secrets or enter your key in the sidebar under '🔑 Gemini API Key'.", "none"
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=10000)
+        )
     except Exception as e:
         return f"⚠️ **Could not initialize Gemini Client:** {str(e)}", "none"
     
-    preferred = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
+    # Ultra-fast official models only (no slow models.list() dynamic paging)
+    candidate_models = [
         "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-pro",
+        "gemini-2.0-flash",
     ]
-    
-    candidate_models = list(preferred)
-    try:
-        discovered = []
-        for m in client.models.list():
-            m_id = getattr(m, "name", "").replace("models/", "")
-            if ("flash" in m_id.lower() or "pro" in m_id.lower()) and m_id not in candidate_models:
-                discovered.append(m_id)
-        candidate_models.extend(discovered)
-    except Exception:
-        pass
 
     last_error = None
     for model_name in candidate_models:
@@ -538,16 +529,17 @@ def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
         except Exception as e:
             err_msg = str(e)
             last_error = e
-            print(f"[NoteWise ⚠️] {model_name} unavailable: {err_msg[:80]}... Rolling over to next model...", flush=True)
+            print(f"[NoteWise ⚠️] {model_name} unavailable: {err_msg[:80]}", flush=True)
+            # Break immediately on quota or authentication errors: don't hammer the API!
+            if any(k in err_msg.lower() for k in ["429", "resource_exhausted", "quota"]):
+                return "⚠️ **Daily API quota reached on free tier.** Please wait a moment or configure your own Gemini API key in the sidebar under '🔑 Gemini API Key'.", "none"
+            if any(k in err_msg.lower() for k in ["api_key_invalid", "400", "not valid", "unregistered"]):
+                return "⚠️ **Gemini API Key is invalid or expired.** Please verify your key in the sidebar under '🔑 Gemini API Key'.", "none"
             continue
 
     if last_error:
         err_str = str(last_error)
-        if "429" in err_str or "resource_exhausted" in err_str.lower():
-            return "⚠️ **Daily API quota reached on free tier.** Please wait a moment or configure your own Gemini API key in settings.", "none"
-        if "API_KEY_INVALID" in err_str or "400" in err_str:
-            return "⚠️ **Gemini API Key is invalid.** Please verify your `GOOGLE_API_KEY` in Streamlit Cloud Secrets or the sidebar.", "none"
-        return f"⚠️ **Gemini API service note:** {err_str[:160]}", "none"
+        return f"⚠️ **Gemini Service Notice:** {err_str[:160]}", "none"
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way.", "none"
 
@@ -760,27 +752,29 @@ def execute_rag(prompt_text: str):
 
     telemetry = {}
 
-    # 2. Semantic Cache Lookup
-    try:
-        query_emb = Settings.embed_model.get_text_embedding(prompt_text)
-        cached_match, sim = st.session_state.semantic_cache.lookup(query_emb)
-        if cached_match:
-            st.session_state.cache_hits += 1
-            print(f"[NoteWise] ⚡ Semantic Cache HIT! Similarity: {sim:.3f}", flush=True)
-            telemetry = {
-                "is_cache_hit": True,
-                "cache_similarity": sim,
-                "retrieval_ms": 2,
-                "generation_ms": 0,
-                "model_used": f"Cache ({cached_match['model']})",
-                "chunks_retrieved": len(cached_match.get("sources", [])),
-                "chunks_used": len(cached_match.get("sources", [])),
-                "token_estimate": 0,
-            }
-            return cached_match["answer"], cached_match["sources"], telemetry, "cached"
-    except Exception as e:
-        query_emb = None
-        print(f"[NoteWise] Cache lookup bypassed: {e}", flush=True)
+    # 2. Semantic Cache Lookup (Only if cache contains items)
+    query_emb = None
+    if len(st.session_state.semantic_cache.entries) > 0:
+        try:
+            query_emb = Settings.embed_model.get_text_embedding(prompt_text)
+            cached_match, sim = st.session_state.semantic_cache.lookup(query_emb)
+            if cached_match:
+                st.session_state.cache_hits += 1
+                print(f"[NoteWise] ⚡ Semantic Cache HIT! Similarity: {sim:.3f}", flush=True)
+                telemetry = {
+                    "is_cache_hit": True,
+                    "cache_similarity": sim,
+                    "retrieval_ms": 2,
+                    "generation_ms": 0,
+                    "model_used": f"Cache ({cached_match['model']})",
+                    "chunks_retrieved": len(cached_match.get("sources", [])),
+                    "chunks_used": len(cached_match.get("sources", [])),
+                    "token_estimate": 0,
+                }
+                return cached_match["answer"], cached_match["sources"], telemetry, "cached"
+        except Exception as e:
+            query_emb = None
+            print(f"[NoteWise] Cache lookup bypassed: {e}", flush=True)
 
     # 3. Build Conversation History (Sliding 4 turns)
     history_turns = st.session_state.messages[-8:]
@@ -888,6 +882,27 @@ def execute_rag(prompt_text: str):
 
     else:
         # General mode (no documents uploaded)
+        prompt_clean = prompt_text.strip().lower()
+        if prompt_clean in ["hi", "hello", "hey", "hello!", "hi!", "help", "who are you", "start"]:
+            answer = (
+                "👋 **Hello! I'm NoteWise**, your executive document intelligence and technical interview copilot.\n\n"
+                "I haven't indexed any documents yet. To unlock my full RAG capabilities:\n\n"
+                "1. **Upload your PDF or Resume** in the sidebar (left panel).\n"
+                "2. Click **Index Documents** to activate hybrid dense + sparse search (RRF) and cross-encoder re-ranking.\n"
+                "3. Ask any deep technical question or request an executive summary, elevator pitch, or interview prep drill-down!"
+            )
+            telemetry = {
+                "is_cache_hit": False,
+                "retrieval_ms": 0,
+                "generation_ms": 1,
+                "model_used": "NoteWise Assistant",
+                "chunks_retrieved": 0,
+                "chunks_used": 0,
+                "token_estimate": 50,
+                "hybrid_fused": False,
+            }
+            return answer, [], telemetry, ""
+
         memory_section = f"\n[CONVERSATION HISTORY]\n{history_str}\n" if history_str else ""
         general_prompt = (
             "You are NoteWise, an intelligent AI copilot. "
