@@ -507,10 +507,14 @@ def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
     except Exception as e:
         return f"⚠️ **Could not initialize Gemini Client:** {str(e)}", "none"
     
-    # Ultra-fast official models only (no slow models.list() dynamic paging)
+    # Ultra-fast official models in order of Google's current generation
     candidate_models = [
-        "gemini-1.5-flash",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash",
         "gemini-2.0-flash",
+        "gemini-1.5-flash",
     ]
 
     last_error = None
@@ -535,6 +539,12 @@ def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
                 return "⚠️ **Daily API quota reached on free tier.** Please wait a moment or configure your own Gemini API key in the sidebar under '🔑 Gemini API Key'.", "none"
             if any(k in err_msg.lower() for k in ["api_key_invalid", "400", "not valid", "unregistered"]):
                 return "⚠️ **Gemini API Key is invalid or expired.** Please verify your key in the sidebar under '🔑 Gemini API Key'.", "none"
+            # If Google recommends an updated model in the error message, adapt dynamically
+            rec_match = re.search(r"models/([a-zA-Z0-9\.\-_]+)", err_msg)
+            if rec_match:
+                rec_model = rec_match.group(1)
+                if rec_model not in candidate_models:
+                    candidate_models.append(rec_model)
             continue
 
     if last_error:
