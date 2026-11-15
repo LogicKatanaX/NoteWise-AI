@@ -446,9 +446,17 @@ RATE_LIMIT_COOLDOWN = 1.0
 MAX_QUERIES_PER_SESSION = 35
 
 def get_api_key():
-    if "GOOGLE_API_KEY" in st.secrets:
-        return st.secrets["GOOGLE_API_KEY"]
-    return os.environ.get("GOOGLE_API_KEY", "")
+    try:
+        if hasattr(st, "secrets"):
+            if "GOOGLE_API_KEY" in st.secrets and st.secrets["GOOGLE_API_KEY"]:
+                return st.secrets["GOOGLE_API_KEY"]
+            if "GEMINI_API_KEY" in st.secrets and st.secrets["GEMINI_API_KEY"]:
+                return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    if st.session_state.get("custom_api_key"):
+        return st.session_state["custom_api_key"].strip()
+    return os.environ.get("GOOGLE_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
 
 # ---------------------------------------------------------------------------
 # Hybrid Retrieval, BM25, Semantic Cache & Guardrails Engine
@@ -483,23 +491,31 @@ if not IS_TESTING:
     Settings.embed_model = load_embedding_model()
 
 # ---------------------------------------------------------------------------
-# Multi-Tier Gemini 3 Cascade Engine
+# Multi-Tier Gemini 2.0 Cascade Engine
 # ---------------------------------------------------------------------------
 def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
-    """Returns (answer_text, model_name_used)."""
-    client = genai.Client(api_key=api_key)
+    """Returns (answer_text, model_name_used). Resilient fallback with zero unhandled crashes."""
+    if not api_key:
+        return "⚠️ **No Gemini API key detected.** Please configure `GOOGLE_API_KEY` in Streamlit Cloud Secrets or enter your key in the sidebar.", "none"
+
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception as e:
+        return f"⚠️ **Could not initialize Gemini Client:** {str(e)}", "none"
     
     preferred = [
-        "gemini-3.8-flash",
-        "gemini-3.7-flash",
-        "gemini-3.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-1.5-pro",
     ]
     
     candidate_models = list(preferred)
     try:
         discovered = []
         for m in client.models.list():
-            m_id = m.name.replace("models/", "")
+            m_id = getattr(m, "name", "").replace("models/", "")
             if ("flash" in m_id.lower() or "pro" in m_id.lower()) and m_id not in candidate_models:
                 discovered.append(m_id)
         candidate_models.extend(discovered)
@@ -527,9 +543,11 @@ def generate_gemini_content(prompt: str, api_key: str) -> tuple[str, str]:
 
     if last_error:
         err_str = str(last_error)
-        if "429" in err_str or "resource_exhausted" in err_str:
-            return "⚠️ **Daily API quota reached on free tier.** Please wait or configure your own key in settings.", "none"
-        raise last_error
+        if "429" in err_str or "resource_exhausted" in err_str.lower():
+            return "⚠️ **Daily API quota reached on free tier.** Please wait a moment or configure your own Gemini API key in settings.", "none"
+        if "API_KEY_INVALID" in err_str or "400" in err_str:
+            return "⚠️ **Gemini API Key is invalid.** Please verify your `GOOGLE_API_KEY` in Streamlit Cloud Secrets or the sidebar.", "none"
+        return f"⚠️ **Gemini API service note:** {err_str[:160]}", "none"
 
     return "⚠️ Could not generate an answer from the document. Please try asking in a different way.", "none"
 
@@ -733,7 +751,7 @@ def execute_rag(prompt_text: str):
       8. Update semantic cache for future instant lookups
     """
     if not api_key:
-        return "❌ **GOOGLE_API_KEY is missing!** Configure it in Streamlit Cloud Secrets.", [], {}, ""
+        return "❌ **Gemini API Key missing:** Please configure `GOOGLE_API_KEY` in Streamlit Cloud Secrets or enter your key in the sidebar under '🔑 Gemini API Key'.", [], {}, ""
 
     # 1. Guardrail inspection
     is_safe, guardrail_msg = check_prompt_guardrails(prompt_text)
@@ -967,7 +985,7 @@ with st.sidebar:
                 <div><b>Cache:</b> {cache_entries} stored ({cache_hits} hits)</div>
             </div>
             <div style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
-                <span class="model-tag">Gemini 3 Cascade</span>
+                <span class="model-tag">Gemini 2.0 Cascade</span>
                 <span class="cache-tag">&lt;0.2ms Cache</span>
             </div>
         </div>
@@ -984,6 +1002,22 @@ with st.sidebar:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+    # --- API Key Settings ---
+    with st.expander("🔑 Gemini API Key", expanded=not bool(get_api_key())):
+        detected_key = get_api_key()
+        if detected_key:
+            st.caption("✅ Active API Key Configured")
+        user_key_input = st.text_input(
+            "API Key Override",
+            type="password",
+            value=st.session_state.get("custom_api_key", ""),
+            placeholder="AIzaSy...",
+            help="Optional: enter your Google Gemini API key if not configured in Streamlit Cloud Secrets."
+        )
+        if user_key_input != st.session_state.get("custom_api_key", ""):
+            st.session_state["custom_api_key"] = user_key_input.strip()
+            st.rerun()
 
     # --- System Architecture & Design Deep-Dive Toggle ---
     if st.button("System Architecture", use_container_width=True):

@@ -7,7 +7,7 @@
       <img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Streamlit App">
     </a>
     <img src="https://github.com/LogicKatanaX/NoteWise-AI/actions/workflows/ci.yml/badge.svg" alt="CI">
-    <img src="https://img.shields.io/badge/Model-Google%20Gemini%203.8%20%7C%203.7%20%7C%203.5-blue?logo=google" alt="Gemini">
+    <img src="https://img.shields.io/badge/Model-Google%20Gemini%202.0%20%7C%201.5-blue?logo=google" alt="Gemini">
     <img src="https://img.shields.io/badge/Dense_Embeddings-BAAI%2Fbge--small--en--v1.5-orange" alt="BAAI Embeddings">
     <img src="https://img.shields.io/badge/Sparse_Search-Okapi_BM25-green" alt="BM25">
     <img src="https://img.shields.io/badge/Fusion-Reciprocal_Rank_Fusion_(RRF)-purple" alt="RRF">
